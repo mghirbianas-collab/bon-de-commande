@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bon de Commande</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e2d3d">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}[hidden]{display:none!important}
+body{font-family:system-ui,sans-serif;background:#f0f2f5;color:#1e2d3d}
+body:not(.admin) .adm{display:none!important}
+.topnav{background:#1e2d3d;display:flex;align-items:center;gap:4px;padding:0 10px;height:52px;overflow-x:auto;position:sticky;top:0;z-index:100}
+.topnav b{color:#2ecc71;margin-right:8px}#who,#pend,#off{font-size:12px;color:#8899aa;white-space:nowrap}#who{margin-left:auto}#pend,#off{color:#f59e0b}
+.nb{background:none;border:0;color:#9ab;padding:7px 11px;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap}.nb.on{background:#2ecc71;color:#1e2d3d;font-weight:600}
+.page{display:none;padding:14px;max-width:960px;margin:auto}.page.on{display:block}
+.card{background:#fff;border-radius:12px;box-shadow:0 1px 4px #0001;margin-bottom:12px;padding:14px}.card h3{font-size:14px;margin-bottom:10px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}.bar h3{margin:0;flex:1}
+input,textarea{width:100%;padding:8px 10px;border:1.5px solid #e0e5ea;border-radius:8px;font:inherit;font-size:13px}input:focus,textarea:focus{outline:0;border-color:#2ecc71}
+.btn{padding:7px 12px;border:0;border-radius:8px;cursor:pointer;font:inherit;font-size:13px}.btn:disabled{opacity:.5}
+.g{background:#2ecc71;color:#fff}.s{background:#eef1f4}.r{background:#fee2e2;color:#dc2626}.r2{background:#dc2626;color:#fff}.sm{padding:4px 8px;font-size:12px}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse}th{background:#f8f9fa;padding:8px;text-align:left;font-size:11px;color:#89a}td{padding:8px;border-top:1px solid #f0f2f5;font-size:13px}
+.mono{font-family:monospace;font-size:12px}.pr{color:#27ae60;font-weight:600;white-space:nowrap}.nw{white-space:nowrap}.mut{color:#999;font-size:12px;padding:8px}
+.bd{background:#dbeafe;color:#1e40af;border-radius:10px;padding:2px 7px;font-size:11px}
+.dd-wrap{position:relative}.dd{position:absolute;left:0;right:0;top:100%;z-index:50;background:#fff;border:1.5px solid #2ecc71;border-radius:8px;max-height:260px;overflow:auto;box-shadow:0 8px 24px #0003}
+.di{padding:9px 12px;border-top:1px solid #f3f3f3;cursor:pointer;display:flex;justify-content:space-between;gap:8px;font-size:13px}.di:hover{background:#f0fdf4}
+.pi{display:flex;align-items:center;gap:8px;background:#f8f9fa;border-radius:8px;padding:8px 10px;margin-bottom:6px}.pn{flex:1;font-size:13px}.pn small{display:block;color:#999}.pi input{width:58px;text-align:center}
+.q{width:28px;height:28px;border:0;border-radius:6px;background:#2ecc71;color:#fff;font-weight:700;cursor:pointer}
+.tot{background:#1e2d3d;color:#2ecc71;border-radius:12px;padding:14px;font-size:18px;font-weight:700;display:flex;justify-content:space-between}
+.overlay{position:fixed;inset:0;background:#0006;z-index:500;display:flex;align-items:center;justify-content:center;padding:12px}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:480px;max-height:90vh;overflow:auto;padding:18px}.modal h3{margin-bottom:12px}
+.mf{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.fg{margin-bottom:10px}.fg label{display:block;font-size:11px;font-weight:600;margin-bottom:3px;color:#567}
+.vr{display:flex;align-items:center;gap:10px;background:#f8f9fa;border-radius:8px;padding:8px;margin-bottom:6px}.vr span{flex:1}.vr input[type=checkbox]{width:18px;height:18px}.vr input[type=number]{width:64px}
+#login{max-width:340px;margin:12vh auto;padding:0 16px}
+</style></head><body>
+
+<div id="login"><div class="card"><h3>🛒 Bon de commande — Connexion</h3>
+<form id="lf"><div class="fg"><label>Email</label><input id="le" type="email" required autocomplete="username"></div>
+<div class="fg"><label>Mot de passe</label><input id="lp" type="password" required autocomplete="current-password"></div>
+<button class="btn g" style="width:100%">Se connecter</button></form></div></div>
+
+<div id="app" hidden>
+<div class="topnav"><b>🛒 BC</b>
+<button class="nb" data-go="cmd">➕ Commande</button><button class="nb" data-go="hist">📋 Historique</button>
+<button class="nb" data-go="art">📦 Articles</button><button class="nb adm" data-go="cli">👥 Clients</button>
+<span id="off"></span><span id="pend"></span><span id="who"></span><button class="nb" data-act="refresh">🔄</button><button class="nb" data-act="logout">Quitter</button></div>
+
+<div id="p_cmd" class="page">
+<div class="card" style="position:relative;z-index:20"><h3>👤 Client</h3><div class="dd-wrap"><input id="cq" placeholder="🔍 Code ou nom du client…" autocomplete="off"><div id="ddc" class="dd" hidden></div></div><div id="cinfo" style="margin-top:8px"></div></div>
+<div class="card" style="position:relative;z-index:10"><h3>📦 Articles</h3><div class="dd-wrap"><input id="aq" placeholder="🔍 Référence ou désignation…" autocomplete="off"><div id="dda" class="dd" hidden></div></div><div id="cart" style="margin-top:10px"></div></div>
+<div class="card"><h3>📝 Notes</h3><textarea id="notes" rows="2" placeholder="Délais, conditions…"></textarea></div>
+<div class="tot"><span>TOTAL TTC</span><span id="total">0,000 DT</span></div>
+<button id="vbtn" class="btn g" style="width:100%;margin-top:10px;padding:13px" data-act="valider" disabled>✅ Valider la commande</button></div>
+
+<div id="p_hist" class="page"><div class="card"><div class="bar"><h3>📋 Historique</h3><input id="hs" placeholder="🔍 N°, client, commercial…" style="width:200px"><button class="btn r2 sm adm" data-act="delAll" data-t="commandes">🗑️ Tout supprimer</button></div><div id="hist"></div></div></div>
+
+<div id="p_art" class="page"><div class="card"><div class="bar"><h3>📦 Articles <small id="ac"></small></h3><input id="as" placeholder="🔍 Réf. ou désignation…" style="width:200px">
+<button class="btn s sm adm" data-act="imp" data-t="articles">📥 Importer</button><button class="btn g sm adm" data-act="add" data-t="articles">➕ Nouveau</button></div><div id="art"></div>
+<div class="adm" style="margin-top:12px"><button class="btn r2 sm" data-act="delAll" data-t="articles">🗑️ Supprimer tous les articles</button></div></div></div>
+
+<div id="p_cli" class="page"><div class="card"><div class="bar"><h3>👥 Clients <small id="cc"></small></h3><input id="cs" placeholder="🔍 Code ou nom…" style="width:200px">
+<button class="btn s sm" data-act="imp" data-t="clients">📥 Importer</button><button class="btn g sm" data-act="add" data-t="clients">➕ Nouveau</button></div><div id="cl"></div>
+<div style="margin-top:12px"><button class="btn r2 sm" data-act="delAll" data-t="clients">🗑️ Supprimer tous les clients</button></div></div></div>
+<input type="file" id="fi" accept=".xlsx,.xls,.csv" hidden>
+</div>
+
+<div id="ov" class="overlay" hidden><div class="modal"><h3 id="mt"></h3><div id="mb"></div><div class="mf"><button class="btn s" data-act="close">Annuler</button><button class="btn g" id="mok">Valider</button></div></div></div>
+
+<script>
+const SUPABASE_URL='https://nolyqonaewnzfvaygdss.supabase.co', SUPABASE_KEY='sb_publishable_QTS4lujDXXJ6gBQSFb_8gg_nnEtDwAX';
+const FOOTER='© Anas MGHIRBI — Tél : 98754193';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+const match=(t,q)=>{t=norm(t);return norm(q).split(/\s+/).filter(Boolean).every(w=>t.includes(w))};
+const r3=n=>Math.round(Number(n||0)*1000)/1000, fmt=n=>r3(n).toFixed(3).replace('.',',')+' DT';
+const dt=s=>new Date(s).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'});
+let me=null,clients=[],articles=[],commandes=[],panier=[],selClient=null,okFn;
+const isAdmin=()=>me?.role==='admin';
+const rd=async q=>{const {data,error}=await q;if(error)throw error;return data};
+
+function toast(m,e){const t=document.createElement('div');t.textContent=m;t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:8px;color:#fff;font-size:13px;z-index:999;max-width:90vw;background:'+(e?'#dc2626':'#2ecc71');document.body.append(t);setTimeout(()=>t.remove(),3800)}
+function modal(t,h,fn){$('mt').textContent=t;$('mb').innerHTML=h;okFn=fn;$('ov').hidden=false}
+const closeModal=()=>$('ov').hidden=true;
+const table=(h,r)=>r.length?`<div class="tw"><table><thead><tr>${h.map(x=>x==='#'?'<th class="adm"></th>':`<th>${x}</th>`).join('')}</tr></thead><tbody>${r.join('')}</tbody></table></div>`:'<p class="mut">Aucun résultat</p>';
+const btns=(t,id)=>`<button class="btn s sm" data-act="edit" data-t="${t}" data-id="${id}">✏️</button> <button class="btn r sm" data-act="del" data-t="${t}" data-id="${id}">🗑️</button>`;
+
+// ── Connexion / rôles ──
+$('lf').onsubmit=async e=>{e.preventDefault();const {data,error}=await sb.auth.signInWithPassword({email:$('le').value.trim(),password:$('lp').value});if(error)return toast('Email ou mot de passe incorrect',1);start(data.user)};
+async function start(u,cached){
+  if(cached)me=cached;else{const {data}=await sb.from('profiles').select('*').eq('id',u.id).maybeSingle(),c=JSON.parse(localStorage.getItem('bcme')||'null');
+  me=data||(c&&c.id===u.id?c:{id:u.id,nom:u.email,role:'user'});if(data)localStorage.setItem('bcme',JSON.stringify(data))}
+  $('login').hidden=true;$('app').hidden=false;document.body.classList.toggle('admin',isAdmin());
+  $('who').textContent=me.nom+(isAdmin()?' · admin':'');setQ(getQ());go('cmd');await flushQ();await loadAll();
+}
+(async()=>{let s=null;try{s=(await sb.auth.getSession()).data.session}catch{}
+  if(s)start(s.user);else{const m=JSON.parse(localStorage.getItem('bcme')||'null');if(m&&!navigator.onLine)start(null,m)}})();
+
+// ── Données ──
+async function all(t,o){let r=[],i=0;for(;;){const d=await rd(sb.from(t).select('*').order(o).order('id').range(i,i+999));r=r.concat(d);if(d.length<1000)return r;i+=1000}}
+// Copie locale (IndexedDB) du catalogue pour travailler sans réseau
+const idb=(m,k,v)=>new Promise((res,rej)=>{const o=indexedDB.open('bc',1);o.onupgradeneeded=()=>o.result.createObjectStore('kv');o.onerror=()=>rej(o.error);
+  o.onsuccess=()=>{const s=o.result.transaction('kv',m).objectStore('kv'),r=m==='readonly'?s.get(k):s.put(v,k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}});
+async function loadAll(){
+  try{[clients,articles,commandes]=await Promise.all([all('clients','nom'),all('articles','designation'),rd(sb.from('commandes').select('*').order('created_at',{ascending:false}).limit(500))]);
+    $('off').textContent='';idb('readwrite','cat',{clients,articles,commandes,t:Date.now()}).catch(()=>{})}
+  catch(e){const c=await idb('readonly','cat').catch(()=>null);if(!c)return toast('Chargement impossible : '+e.message,1);
+    clients=c.clients;articles=c.articles;commandes=c.commandes;$('off').textContent='📴 données du '+dt(c.t)}
+  render()}
+function render(){renderHist();renderArt();if(isAdmin())renderCli();cinfo()}
+function go(p){if(p==='cli'&&!isAdmin())return;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('on',x.id==='p_'+p));document.querySelectorAll('.nb[data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===p))}
+
+function renderArt(){const q=$('as').value,l=articles.filter(a=>match((a.reference||'')+' '+a.designation,q));$('ac').textContent=`(${articles.length})`;
+  $('art').innerHTML=table(['Réf.','Désignation','Prix TTC','#'],l.slice(0,100).map(a=>`<tr><td class="mono">${esc(a.reference)}</td><td><b>${esc(a.designation)}</b>${a.variantes?` <span class="bd">${a.variantes.split(',').length} variantes</span>`:''}</td><td class="pr">${fmt(a.prix)}</td><td class="adm nw">${btns('articles',a.id)}</td></tr>`))+(l.length>100?`<p class="mut">100 premiers résultats sur ${l.length} — affinez la recherche.</p>`:'')}
+function renderCli(){const q=$('cs').value,l=clients.filter(c=>match((c.code||'')+' '+c.nom,q));$('cc').textContent=`(${clients.length})`;
+  $('cl').innerHTML=table(['Code','Nom','Tél.','Adresse','#'],l.slice(0,100).map(c=>`<tr><td class="mono">${esc(c.code)}</td><td><b>${esc(c.nom)}</b></td><td>${esc(c.telephone)}</td><td>${esc(c.adresse)}</td><td class="adm nw">${btns('clients',c.id)}</td></tr>`))+(l.length>100?`<p class="mut">100 premiers résultats sur ${l.length}.</p>`:'')}
+function renderHist(){const q=$('hs').value,l=allCmd().filter(c=>match(c.numero+' '+(c.client?.nom||'')+' '+c.commercial,q));
+  $('hist').innerHTML=table(['N°','Client','Commercial','Date','Total',''],l.slice(0,150).map(c=>`<tr><td><b>${esc(c.numero)}</b></td><td>${esc(c.client?.nom)}</td><td>${esc(c.commercial)}</td><td>${dt(c.created_at)}</td><td class="pr">${fmt(c.total)}</td><td class="nw"><button class="btn s sm" data-act="pdf" data-id="${c.id}">📄</button> <button class="btn s sm" data-act="xls" data-id="${c.id}">📊</button> <button class="btn r sm adm" data-act="del" data-t="commandes" data-id="${c.id}">🗑️</button></td></tr>`))}
+
+// ── Nouvelle commande ──
+function dd(k){const c=k==='c',q=$(c?'cq':'aq').value,box=$(c?'ddc':'dda');
+  const l=(c?clients:articles).filter(x=>match(c?(x.code||'')+' '+x.nom:(x.reference||'')+' '+x.designation,q)).slice(0,40);
+  box.innerHTML=l.map(x=>c?`<div class="di" data-act="pickC" data-id="${x.id}"><b>${esc(x.nom)}</b><small>${esc(x.code)}</small></div>`:`<div class="di" data-act="pickA" data-id="${x.id}"><span><b>${esc(x.designation)}</b><br><small>${esc(x.reference)}</small></span><span class="pr">${fmt(x.prix)}</span></div>`).join('')||'<div class="di">Aucun résultat</div>';box.hidden=false}
+function cinfo(){$('cinfo').innerHTML=selClient?`<div class="pi"><div class="pn"><b>${esc(selClient.nom)}</b><small>${esc(selClient.code)} ${esc(selClient.telephone)} ${esc(selClient.adresse)}</small></div><button class="btn s sm" data-act="clr">Changer</button></div>`:'';cart()}
+function cart(){$('cart').innerHTML=panier.map((p,i)=>`<div class="pi"><div class="pn"><b>${esc(p.designation)}</b><small>${esc(p.reference)}${p.detail?' — '+esc(p.detail):''}</small></div>${p.detail?`<b>×${p.qte}</b>`:`<button class="q" data-act="dec" data-i="${i}">−</button><input type="number" min="1" value="${p.qte}" data-q="${i}"><button class="q" data-act="inc" data-i="${i}">+</button>`}<span class="pr">${fmt(p.prix*p.qte)}</span><button class="btn r sm" data-act="rm" data-i="${i}">✕</button></div>`).join('');
+  $('total').textContent=fmt(panier.reduce((s,p)=>s+p.prix*p.qte,0));$('vbtn').disabled=!selClient||!panier.length}
+function addLine(a,detail,qte){const j=panier.findIndex(p=>p.id===a.id);if(j>=0){if(detail)panier.splice(j,1);else{panier[j].qte+=qte;return cart()}}
+  panier.unshift({id:a.id,reference:a.reference||'',designation:a.designation,prix:Number(a.prix),qte,detail});cart()}
+function pickA(d){const a=articles.find(x=>x.id===d.id);$('aq').value='';$('dda').hidden=true;
+  const v=(a.variantes||'').split(',').map(s=>s.trim()).filter(Boolean);if(!v.length)return addLine(a,'',1);
+  modal(a.designation,v.map((x,i)=>`<label class="vr"><input type="checkbox" data-v="${i}"><span>${esc(x)}</span><input type="number" min="1" value="1" data-vq="${i}"></label>`).join(''),()=>{
+    const s=v.map((x,i)=>[x,+document.querySelector(`[data-vq="${i}"]`).value||1,document.querySelector(`[data-v="${i}"]`).checked]).filter(x=>x[2]);
+    if(!s.length)return toast('Choisissez au moins une variante',1);
+    addLine(a,s.map(x=>x[0]+': '+x[1]).join(', '),s.reduce((n,x)=>n+x[1],0));closeModal()})}
+
+// File d'attente hors ligne : le numéro officiel est donné par le serveur à l'envoi
+const getQ=()=>JSON.parse(localStorage.getItem('bcq')||'[]');
+const setQ=q=>{localStorage.setItem('bcq',JSON.stringify(q));$('pend').textContent=q.length?`⏳ ${q.length} en attente`:''};
+async function flushQ(){const q=getQ(),keep=[];if(!q.length||!me)return;try{await sb.auth.getSession()}catch{}
+  for(const o of q){const {error}=await sb.from('commandes').insert(o);if(error&&error.code!=='23505'){if(!error.code||/^PGRST30|jwt/i.test(error.code+error.message))keep.push(o);else toast(error.message,1)}}
+  setQ(keep);if(keep.length<q.length){toast('Commandes en attente envoyées');loadAll()}}
+const allCmd=()=>{const ids=new Set(commandes.map(c=>c.id));return [...getQ().filter(o=>!ids.has(o.id)).map(o=>({...o,numero:'PROVISOIRE'})),...commandes]};
+addEventListener('online',flushQ);
+async function valider(){
+  const o={id:crypto.randomUUID(),client_id:selClient.id,client:{code:selClient.code,nom:selClient.nom,telephone:selClient.telephone,adresse:selClient.adresse},commercial:me.nom,created_at:new Date().toISOString(),
+    lignes:panier.map(p=>({...p,total:r3(p.prix*p.qte)})),total:r3(panier.reduce((s,p)=>s+p.prix*p.qte,0)),notes:$('notes').value.trim()};
+  $('vbtn').disabled=true;const {error}=await sb.from('commandes').insert(o);
+  if(error&&error.code){toast(error.message,1);return cart()}
+  if(error){setQ([...getQ(),o]);toast('📴 Pas de réseau : commande gardée sur ce téléphone, envoi automatique au retour du réseau')}else toast('Commande enregistrée');
+  panier=[];selClient=null;$('notes').value='';cinfo();go('hist');loadAll()}
+
+// ── Administration : articles et clients ──
+function formModal(t,item){const A=t==='articles',f=A?[['reference','Référence'],['designation','Désignation *'],['prix','Prix TTC *','number'],['variantes','Variantes (séparées par des virgules)']]:[['code','Code'],['nom','Nom *'],['telephone','Téléphone'],['adresse','Adresse']];
+  modal(item?'Modifier':'Nouveau',f.map(([k,l,ty])=>`<div class="fg"><label>${l}</label><input id="f_${k}" type="${ty||'text'}" step="0.001" value="${esc(item?.[k])}"></div>`).join(''),async()=>{
+    const d={};f.forEach(([k])=>d[k]=$('f_'+k).value.trim());
+    if(A){d.prix=parseFloat(d.prix.replace(',','.'));if(!d.designation||!(d.prix>=0))return toast('Désignation et prix obligatoires',1)}else if(!d.nom)return toast('Le nom est obligatoire',1);
+    const {error}=await(item?sb.from(t).update(d).eq('id',item.id):sb.from(t).insert(d));
+    if(error)return toast(error.message,1);closeModal();toast('Enregistré');loadAll()})}
+async function del(t,id){if(!confirm('Supprimer ?'))return;const {error}=await sb.from(t).delete().eq('id',id);if(error)return toast(error.message,1);toast('Supprimé');loadAll()}
+async function delAll(t){if(prompt('Tapez SUPPRIMER pour effacer tout le contenu de « '+t+' »')!=='SUPPRIMER')return;const {error}=await sb.from(t).delete().not('id','is',null);if(error)return toast(error.message,1);toast('Tout est supprimé');loadAll()}
+const CFG={articles:{key:r=>norm(r.reference)||norm(r.designation),map:r=>({reference:r.reference||r.ref||r.code||'',designation:r.designation||r.libelle||r.article||'',prix:parseFloat(String(r.prix||r.price||'0').replace(/\s/g,'').replace(',','.'))||0,variantes:r.variantes||r.parfum||''}),ok:x=>x.designation&&x.prix>0},
+  clients:{key:r=>norm(r.code)||norm(r.nom),map:r=>({code:r.code||'',nom:r.nom||r.client||'',telephone:r.telephone||r.tel||'',adresse:r.adresse||''}),ok:x=>x.nom}};
+const same=(e,x)=>Object.keys(x).every(f=>f==='prix'?Number(e.prix)===x.prix:(e[f]||'')===x[f]);
+async function importFile(t,file){const C=CFG[t],wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}).map(r=>Object.fromEntries(Object.entries(r).map(([k,v])=>[norm(k).trim(),String(v).trim()])));
+  const ex=new Map((t==='articles'?articles:clients).map(x=>[C.key(x),x])),ins=[],upd=[],seen=new Set();
+  for(const r of rows){const x=C.map(r);if(!C.ok(x))continue;const k=C.key(x);if(seen.has(k))continue;seen.add(k);const e=ex.get(k);if(!e)ins.push(x);else if(!same(e,x))upd.push({...x,id:e.id})}
+  for(let i=0;i<ins.length;i+=500)await rd(sb.from(t).insert(ins.slice(i,i+500)));
+  for(let i=0;i<upd.length;i+=500)await rd(sb.from(t).upsert(upd.slice(i,i+500)));
+  toast(`${ins.length} ajouté(s), ${upd.length} mis à jour`);loadAll()}
+
+// ── Exports ──
+function xls(c){const h=[['BON DE COMMANDE : '+c.numero],['Client : '+(c.client?.nom||'')],['Date : '+dt(c.created_at)],['Commercial : '+c.commercial],['']],rows=l=>l.flatMap(x=>[[x.reference||''],[x.qte]]),wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([...h,...rows(c.lignes)]),'BC');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([...h,...rows([...c.lignes].reverse())]),'BC inversé');XLSX.writeFile(wb,'BC-'+c.numero+'.xlsx')}
+function pdf(c){const {jsPDF}=window.jspdf,d=new jsPDF(),W=210,M=12,X=[M,50,122,152,176];let y;d.setLineHeightFactor(1.3);
+  const head=()=>{d.setFillColor(180,220,190).rect(M,y,W-2*M,7,'F');d.setFont('helvetica','bold').setFontSize(8).setTextColor(30,60,40);['Référence','Désignation','Prix TTC','Qté','Total TTC'].forEach((h,i)=>d.text(h,X[i]+1,y+5));y+=7};
+  d.setFillColor(230,245,235).rect(0,0,W,22,'F');d.setTextColor(30,80,50).setFont('helvetica','bold').setFontSize(13).text('BON DE COMMANDE',M,9);
+  d.setFont('helvetica','normal').setFontSize(8).text((c.numero==='PROVISOIRE'?'N° PROVISOIRE (non synchronisé)':'N° '+c.numero)+'   Date : '+dt(c.created_at),M,15).text('Commercial : '+c.commercial,M,19.5);
+  const k=c.client||{},cl=d.splitTextToSize('CLIENT : '+[k.code&&`[${k.code}]`,k.nom,k.telephone&&'Tél : '+k.telephone,k.adresse].filter(Boolean).join('   '),W-2*M-4);
+  d.setTextColor(40).text(cl,M+2,31);y=31+cl.length*4+3;head();
+  c.lignes.forEach((l,i)=>{const a=d.splitTextToSize(l.designation,66),b=l.detail?d.splitTextToSize(l.detail,66):[],h=Math.max(6,(a.length+b.length)*3.7+2.5);
+    if(y+h>268){d.addPage();y=12;head()}
+    if(i%2===0)d.setFillColor(245,252,247).rect(M,y,W-2*M,h,'F');
+    d.setFontSize(8).setFont('helvetica','normal').setTextColor(30);
+    d.text(String(l.reference||'').slice(0,16),X[0]+1,y+4.2).text(a,X[1]+1,y+4.2).text(Number(l.prix).toFixed(3),X[2]+1,y+4.2).text(String(l.qte),X[3]+1,y+4.2).text(Number(l.total).toFixed(3),X[4]+1,y+4.2);
+    if(b.length)d.setFont('helvetica','italic').setFontSize(7).setTextColor(90).text(b,X[1]+1,y+4.2+a.length*3.7);y+=h});
+  if(y>258){d.addPage();y=12}y+=3;
+  d.setFillColor(180,220,190).rect(125,y,W-125-M,9,'F');d.setTextColor(30,80,50).setFont('helvetica','bold').setFontSize(10).text('TOTAL TTC : '+Number(c.total).toFixed(3)+' DT',128,y+6.3);
+  if(c.notes){y+=15;d.setFont('helvetica','normal').setFontSize(8).setTextColor(60).text(d.splitTextToSize('Notes : '+c.notes,W-2*M),M,y)}
+  const n=d.getNumberOfPages();for(let i=1;i<=n;i++){d.setPage(i);d.setFillColor(230,245,235).rect(0,284,W,13,'F');d.setTextColor(30,80,50).setFont('helvetica','normal').setFontSize(7.5).text(FOOTER,W/2,290,{align:'center'}).text(`Page ${i}/${n}`,W/2,295,{align:'center'})}
+  d.save('BC-'+c.numero+'.pdf')}
+
+// ── Événements (aucun onclick inline : plus de bug avec les apostrophes) ──
+const A={logout:async()=>{if(getQ().length&&!confirm('Des commandes ne sont pas encore envoyées. Quitter quand même ?'))return;localStorage.removeItem('bcme');await idb('readwrite','cat',null).catch(()=>{});try{await sb.auth.signOut()}catch{}location.reload()},refresh:async()=>{await flushQ();await loadAll();toast('Actualisé')},close:closeModal,
+  pickC:d=>{selClient=clients.find(c=>c.id===d.id);$('cq').value='';$('ddc').hidden=true;cinfo()},clr:()=>{selClient=null;cinfo()},pickA,
+  inc:d=>{panier[d.i].qte++;cart()},dec:d=>{if(--panier[d.i].qte<1)panier.splice(d.i,1);cart()},rm:d=>{panier.splice(d.i,1);cart()},valider,
+  edit:d=>formModal(d.t,(d.t==='articles'?articles:clients).find(x=>x.id===d.id)),add:d=>formModal(d.t),del:d=>del(d.t,d.id),delAll:d=>delAll(d.t),
+  imp:d=>{$('fi').dataset.t=d.t;$('fi').click()},pdf:d=>pdf(allCmd().find(c=>c.id===d.id)),xls:d=>xls(allCmd().find(c=>c.id===d.id))};
+document.addEventListener('click',e=>{if(!e.target.closest('.dd-wrap'))document.querySelectorAll('.dd').forEach(x=>x.hidden=true);
+  const t=e.target.closest('[data-go],[data-act]');if(!t)return;if(t.dataset.go)return go(t.dataset.go);A[t.dataset.act]?.(t.dataset)});
+document.addEventListener('change',async e=>{const t=e.target;
+  if(t.dataset.q!==undefined){panier[t.dataset.q].qte=Math.max(1,parseInt(t.value)||1);cart()}
+  if(t.id==='fi'&&t.files[0]){try{await importFile(t.dataset.t,t.files[0])}catch(x){toast('Import : '+x.message,1)}t.value=''}});
+$('mok').onclick=async()=>{$('mok').disabled=true;try{await okFn()}finally{$('mok').disabled=false}};
+$('ov').onclick=e=>{if(e.target===$('ov'))closeModal()};addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+$('hs').oninput=renderHist;$('as').oninput=renderArt;$('cs').oninput=renderCli;
+$('cq').oninput=$('cq').onfocus=()=>dd('c');$('aq').oninput=$('aq').onfocus=()=>dd('a');
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script></body></html>
