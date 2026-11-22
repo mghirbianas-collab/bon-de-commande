@@ -1,8 +1,9 @@
-const V='bc-v1';
+const V='bc-v2';
 const URLS=['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png',
  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js',
  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
- 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'];
+ 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+ 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(V).then(c=>Promise.all(URLS.map(u=>c.add(u).catch(()=>{})))).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V).map(x=>caches.delete(x)))).then(()=>clients.claim())));
 // Réseau d'abord (toujours la dernière version en ligne), cache en secours hors ligne. Les données Supabase ne passent pas par ici.
