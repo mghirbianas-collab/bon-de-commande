@@ -40,6 +40,7 @@ input,textarea{width:100%;padding:8px 10px;border:1.5px solid #e0e5ea;border-rad
 a[data-act]{color:#dc2626;cursor:pointer}tr[data-act]{cursor:pointer}
 #scan{flex-direction:column;align-items:stretch;padding:0;background:#000;z-index:600}.vw{position:relative;flex:1;min-height:0}#sv{width:100%;height:100%;object-fit:cover}
 .ret{position:absolute;left:8%;right:8%;top:35%;height:30%;border:2px solid #2ecc71;border-radius:12px;box-shadow:0 0 0 999px #0006}.sbar{display:flex;gap:8px;justify-content:center;padding:12px}
+select{padding:7px;border:1.5px solid #e0e5ea;border-radius:8px;font:inherit;font-size:13px;background:#fff}.pi .btn,.pi select{flex:none}
 </style></head><body>
 
 <div id="login"><div class="card"><h3>🛒 Bon de commande — Connexion</h3>
@@ -50,7 +51,7 @@ a[data-act]{color:#dc2626;cursor:pointer}tr[data-act]{cursor:pointer}
 <div id="app" hidden>
 <div class="topnav"><b>🛒 BC</b>
 <button class="nb" data-go="cmd">➕ Commande</button><button class="nb" data-go="hist">📋 Historique</button>
-<button class="nb" data-go="art">📦 Articles</button><button class="nb" data-go="inv">📊 Inventaire</button><button class="nb adm" data-go="cli">👥 Clients</button>
+<button class="nb" data-go="art">📦 Articles</button><button class="nb" data-go="inv">📊 Inventaire</button><button class="nb adm" data-go="cli">👥 Clients</button><button class="nb adm" data-go="adm">⚙️ Admin</button>
 <span id="off"></span><span id="pend"></span><span id="who"></span><button class="nb" data-act="refresh">🔄</button><button class="nb" data-act="logout">Quitter</button></div>
 
 <div id="p_cmd" class="page">
@@ -63,13 +64,15 @@ a[data-act]{color:#dc2626;cursor:pointer}tr[data-act]{cursor:pointer}
 <div id="p_hist" class="page"><div class="card"><div class="bar"><h3>📋 Historique</h3><input id="hs" placeholder="🔍 N°, client, commercial…" style="width:200px"><button class="btn r2 sm adm" data-act="delAll" data-t="commandes">🗑️ Tout supprimer</button></div><div id="hist"></div></div></div>
 
 <div id="p_art" class="page"><div class="card"><div class="bar"><h3>📦 Articles <small id="ac"></small></h3><input id="as" placeholder="🔍 Réf. ou désignation…" style="width:200px">
-<button class="btn s sm adm" data-act="imp" data-t="articles">📥 Importer</button><button class="btn g sm adm" data-act="add" data-t="articles">➕ Nouveau</button></div><div id="art"></div>
+<button class="btn g sm" data-act="ascan">📷</button><button class="btn s sm adm" data-act="xbc">📥 Codes-barres</button><button class="btn s sm adm" data-act="imp" data-t="articles">📥 Importer</button><button class="btn g sm adm" data-act="add" data-t="articles">➕ Nouveau</button></div><div id="art"></div>
 <div class="adm" style="margin-top:12px"><button class="btn r2 sm" data-act="delAll" data-t="articles">🗑️ Supprimer tous les articles</button></div></div></div>
 
 <div id="p_inv" class="page"><div id="ibn"></div>
 <div class="card" style="position:relative;z-index:20"><h3>🔎 Article à compter</h3><div class="bar" style="margin:0"><div class="dd-wrap" style="flex:1"><input id="iq" placeholder="🔍 Nom, référence ou code-barres…" autocomplete="off"><div id="ddi" class="dd" hidden></div></div><button class="btn g" data-act="scan">📷</button></div></div>
 <div id="isel"></div>
-<div class="card"><div class="bar"><button class="btn s sm" data-act="xinv">📥 Exporter mon inventaire</button><button class="btn s sm adm" data-act="xall">📥 Total (admin)</button><button class="btn r2 sm adm" data-act="delAll" data-t="inventaire">🗑️ Vider</button></div><div id="ilist"></div></div></div>
+<div class="card"><div class="bar"><button class="btn s sm" data-act="xinv">📥 Exporter mon inventaire</button><button class="btn s sm adm" data-act="xall">📥 Total (admin)</button></div><div id="ilist"></div></div></div>
+<div id="p_adm" class="page"><div class="card"><div class="bar"><h3>👥 Utilisateurs</h3><button class="btn g sm" data-act="uadd">➕ Nouvel utilisateur</button></div><div id="ulist"></div></div>
+<div class="card"><h3>🧹 Remise à zéro des inventaires</h3><p class="mut">Efface les comptages de tous les utilisateurs et de l’admin. Action définitive : exporte le total avant.</p><div class="bar"><button class="btn s sm" data-act="xall">📥 Exporter le total</button><button class="btn r2 sm" data-act="ureset">🗑️ Tout remettre à zéro</button></div></div></div>
 <div id="p_cli" class="page"><div class="card"><div class="bar"><h3>👥 Clients <small id="cc"></small></h3><input id="cs" placeholder="🔍 Code ou nom…" style="width:200px">
 <button class="btn s sm" data-act="imp" data-t="clients">📥 Importer</button><button class="btn g sm" data-act="add" data-t="clients">➕ Nouveau</button></div><div id="cl"></div>
 <div style="margin-top:12px"><button class="btn r2 sm" data-act="delAll" data-t="clients">🗑️ Supprimer tous les clients</button></div></div></div>
@@ -90,14 +93,14 @@ const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLo
 const match=(t,q)=>{t=norm(t);return norm(q).split(/\s+/).filter(Boolean).every(w=>t.includes(w))};
 const r3=n=>Math.round(Number(n||0)*1000)/1000, fmt=n=>r3(n).toFixed(3).replace('.',',')+' DT';
 const dt=s=>new Date(s).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'});
-let me=null,clients=[],articles=[],commandes=[],panier=[],selClient=null,okFn,codes=[],invRows=[],bcIdx=new Map(),bcOf=new Map(),myInv=new Map(),artMap=new Map(),recent=[],selArt=null,pendingCode=null;
+let me=null,clients=[],articles=[],commandes=[],panier=[],selClient=null,okFn,codes=[],invRows=[],bcIdx=new Map(),bcOf=new Map(),myInv=new Map(),artMap=new Map(),recent=[],selArt=null,pendingCode=null,linkArt=null;
 const isAdmin=()=>me?.role==='admin';
 const rd=async q=>{const {data,error}=await q;if(error)throw error;return data};
 
 function toast(m,e){const t=document.createElement('div');t.textContent=m;t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:8px;color:#fff;font-size:13px;z-index:999;max-width:90vw;background:'+(e?'#dc2626':'#2ecc71');document.body.append(t);setTimeout(()=>t.remove(),3800)}
 function modal(t,h,fn,ok){$('mok').textContent=ok||'Valider';$('mt').textContent=t;$('mb').innerHTML=h;okFn=fn;$('ov').hidden=false}
 const closeModal=()=>$('ov').hidden=true;
-const table=(h,r)=>r.length?`<div class="tw"><table><thead><tr>${h.map(x=>x==='#'?'<th class="adm"></th>':`<th>${x}</th>`).join('')}</tr></thead><tbody>${r.join('')}</tbody></table></div>`:'<p class="mut">Aucun résultat</p>';
+const table=(h,r)=>r.length?`<div class="tw"><table><thead><tr>${h.map(x=>x==='#'?'<th class="adm"></th>':x[0]==='!'?`<th class="adm">${x.slice(1)}</th>`:`<th>${x}</th>`).join('')}</tr></thead><tbody>${r.join('')}</tbody></table></div>`:'<p class="mut">Aucun résultat</p>';
 const btns=(t,id)=>`<button class="btn s sm" data-act="edit" data-t="${t}" data-id="${id}">✏️</button> <button class="btn r sm" data-act="del" data-t="${t}" data-id="${id}">🗑️</button>`;
 
 // ── Connexion / rôles ──
@@ -123,10 +126,10 @@ async function loadAll(){
     clients=c.clients;articles=c.articles;commandes=c.commandes;codes=c.codes||[];invRows=c.invRows||[];$('off').textContent='📴 données du '+dt(c.t)}
   idx();render()}
 function render(){renderHist();renderArt();if(isAdmin())renderCli();cinfo();renderInv()}
-function go(p){if(p==='cli'&&!isAdmin())return;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('on',x.id==='p_'+p));document.querySelectorAll('.nb[data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===p))}
+function go(p){if((p==='cli'||p==='adm')&&!isAdmin())return;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('on',x.id==='p_'+p));document.querySelectorAll('.nb[data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===p));if(p==='adm')loadUsers()}
 
-function renderArt(){const q=$('as').value,l=articles.filter(a=>match((a.reference||'')+' '+a.designation,q));$('ac').textContent=`(${articles.length})`;
-  $('art').innerHTML=table(['Réf.','Désignation','Stock init.','Prix TTC','#'],l.slice(0,100).map(a=>`<tr><td class="mono">${esc(a.reference)}</td><td><b>${esc(a.designation)}</b>${a.variantes?` <span class="bd">${a.variantes.split(',').length} variantes</span>`:''}</td><td>${+a.stock_initial||0}</td><td class="pr">${fmt(a.prix)}</td><td class="adm nw">${btns('articles',a.id)}</td></tr>`))+(l.length>100?`<p class="mut">100 premiers résultats sur ${l.length} — affinez la recherche.</p>`:'')}
+function renderArt(){const q=$('as').value,l=articles.filter(a=>match((a.reference||'')+' '+a.designation+' '+(bcOf.get(a.id)||[]).join(' '),q));$('ac').textContent=`(${articles.length})`;
+  $('art').innerHTML=table(['Réf.','Désignation','!Stock init.','Prix TTC','#'],l.slice(0,100).map(a=>`<tr><td class="mono">${esc(a.reference)}</td><td><b>${esc(a.designation)}</b>${a.variantes?` <span class="bd">${a.variantes.split(',').length} variantes</span>`:''}${(bcOf.get(a.id)||[]).length?`<br><small class="mono">${bcOf.get(a.id).map(esc).join(' · ')}</small>`:''}</td><td class="adm">${+a.stock_initial||0}</td><td class="pr">${fmt(a.prix)}</td><td class="adm nw"><button class="btn s sm" data-act="bcscan" data-id="${a.id}">📷</button> ${btns('articles',a.id)}</td></tr>`))+(l.length>100?`<p class="mut">100 premiers résultats sur ${l.length} — affinez la recherche.</p>`:'')}
 function renderCli(){const q=$('cs').value,l=clients.filter(c=>match((c.code||'')+' '+c.nom,q));$('cc').textContent=`(${clients.length})`;
   $('cl').innerHTML=table(['Code','Nom','Tél.','Adresse','#'],l.slice(0,100).map(c=>`<tr><td class="mono">${esc(c.code)}</td><td><b>${esc(c.nom)}</b></td><td>${esc(c.telephone)}</td><td>${esc(c.adresse)}</td><td class="adm nw">${btns('clients',c.id)}</td></tr>`))+(l.length>100?`<p class="mut">100 premiers résultats sur ${l.length}.</p>`:'')}
 function renderHist(){const q=$('hs').value,l=allCmd().filter(c=>match(c.numero+' '+(c.client?.nom||'')+' '+c.commercial,q));
@@ -208,7 +211,7 @@ function pdf(c){const {jsPDF}=window.jspdf,d=new jsPDF(),W=210,M=12,X=[M,50,122,
   d.save('BC-'+c.numero+'.pdf')}
 
 // ── Événements (aucun onclick inline : plus de bug avec les apostrophes) ──
-const A={scan:()=>openScan('find'),scanlink:()=>openScan('link'),scanx:closeScan,torch,cam:camNext,calc,isave,pickI,pcx:()=>{pendingCode=null;banner()},bcdel,xinv:()=>exportInv(false),xall:()=>exportInv(true),logout:async()=>{if((getQ().length||getQ2().length)&&!confirm('Des commandes ne sont pas encore envoyées. Quitter quand même ?'))return;localStorage.removeItem('bcme');await idb('readwrite','cat',null).catch(()=>{});try{await sb.auth.signOut()}catch{}location.reload()},refresh:async()=>{await flushQ();await flushQ2();await loadAll();toast('Actualisé')},close:closeModal,
+const A={ascan:()=>openScan('afind'),bcscan:d=>{linkArt=artMap.get(d.id);openScan('link')},xbc:exportBc,uadd,uname,upass,udel,ureset,scan:()=>openScan('find'),scanlink:()=>{linkArt=selArt;openScan('link')},scanx:closeScan,torch,cam:camNext,calc,isave,pickI,pcx:()=>{pendingCode=null;banner()},bcdel,xinv:()=>exportInv(false),xall:()=>exportInv(true),logout:async()=>{if((getQ().length||getQ2().length)&&!confirm('Des commandes ne sont pas encore envoyées. Quitter quand même ?'))return;localStorage.removeItem('bcme');await idb('readwrite','cat',null).catch(()=>{});try{await sb.auth.signOut()}catch{}location.reload()},refresh:async()=>{await flushQ();await flushQ2();await loadAll();toast('Actualisé')},close:closeModal,
   pickC:d=>{selClient=clients.find(c=>c.id===d.id);$('cq').value='';$('ddc').hidden=true;cinfo()},clr:()=>{selClient=null;cinfo()},pickA,
   inc:d=>{panier[d.i].qte++;cart()},dec:d=>{if(--panier[d.i].qte<1)panier.splice(d.i,1);cart()},rm:d=>{panier.splice(d.i,1);cart()},valider,
   edit:d=>formModal(d.t,(d.t==='articles'?articles:clients).find(x=>x.id===d.id)),add:d=>formModal(d.t),del:d=>del(d.t,d.id),delAll:d=>delAll(d.t),
@@ -216,6 +219,7 @@ const A={scan:()=>openScan('find'),scanlink:()=>openScan('link'),scanx:closeScan
 document.addEventListener('click',e=>{if(!e.target.closest('.dd-wrap'))document.querySelectorAll('.dd').forEach(x=>x.hidden=true);
   const kk=e.target.closest('[data-k]');if(kk)return ckey(kk.dataset.k);const t=e.target.closest('[data-go],[data-act]');if(!t)return;if(t.dataset.go)return go(t.dataset.go);A[t.dataset.act]?.(t.dataset)});
 document.addEventListener('change',async e=>{const t=e.target;
+  if(t.dataset.role){try{await adm({action:'role',id:t.dataset.role,role:t.value});toast('Rôle modifié')}catch(x){toast(x.message,1)}loadUsers()}
   if(t.dataset.q!==undefined){panier[t.dataset.q].qte=Math.max(1,parseInt(t.value)||1);cart()}
   if(t.id==='fi'&&t.files[0]){try{await importFile(t.dataset.t,t.files[0])}catch(x){toast('Import : '+x.message,1)}t.value=''}});
 $('mok').onclick=async()=>{$('mok').disabled=true;try{await okFn()}finally{$('mok').disabled=false}};
@@ -226,10 +230,10 @@ $('cq').oninput=$('cq').onfocus=()=>dd('c');$('aq').oninput=$('aq').onfocus=()=>
 const getQ2=()=>JSON.parse(localStorage.getItem('bcq2')||'[]'),setQ2=q=>{localStorage.setItem('bcq2',JSON.stringify(q));setQ(getQ())};
 const isNet=e=>!e.code||/^PGRST30|jwt/i.test(e.code+e.message);
 function addBc(c,id){bcIdx.set(c,id);const l=bcOf.get(id)||[];if(!l.includes(c))l.push(c);bcOf.set(id,l)}
-function applyOp(o){if(o.t==='inv'){myInv.set(o.article_id,o.qte);recent=[o.article_id,...recent.filter(x=>x!==o.article_id)]}else addBc(o.code,o.article_id)}
+function applyOp(o){if(o.t==='inv'){if(o.qte>0){myInv.set(o.article_id,o.qte);recent=[o.article_id,...recent.filter(x=>x!==o.article_id)]}else myInv.delete(o.article_id)}else addBc(o.code,o.article_id)}
 function idx(){artMap=new Map(articles.map(a=>[a.id,a]));bcIdx=new Map();bcOf=new Map();codes.forEach(c=>addBc(c.code,c.article_id));
-  myInv=new Map(invRows.filter(r=>r.user_id===me.id).map(r=>[r.article_id,Number(r.qte)]));getQ2().forEach(applyOp)}
-const sendOp=o=>o.t==='inv'?sb.from('inventaire').upsert({user_id:me.id,article_id:o.article_id,qte:o.qte,updated_at:new Date().toISOString()},{onConflict:'user_id,article_id'}):sb.from('codes_barres').insert({code:o.code,article_id:o.article_id});
+  myInv=new Map(invRows.filter(r=>r.user_id===me.id&&Number(r.qte)>0).map(r=>[r.article_id,Number(r.qte)]));getQ2().forEach(applyOp)}
+const sendOp=o=>o.t==='inv'&&o.qte===0?sb.from('inventaire').delete().eq('user_id',me.id).eq('article_id',o.article_id):o.t==='inv'?sb.from('inventaire').upsert({user_id:me.id,article_id:o.article_id,qte:o.qte,updated_at:new Date().toISOString()},{onConflict:'user_id,article_id'}):sb.from('codes_barres').insert({code:o.code,article_id:o.article_id});
 async function doOp(o){const {error}=await sendOp(o);
   if(error&&!isNet(error)){toast(error.code==='23505'?'Ce code-barres est déjà utilisé par un autre article':error.message,1);return false}
   if(error)setQ2([...getQ2(),o]);applyOp(o);return true}
@@ -248,12 +252,12 @@ function renderSel(){const a=selArt,el=$('isel');if(!a){el.innerHTML='';return}
   const cur=myInv.get(a.id),bc=bcOf.get(a.id)||[];
   el.innerHTML=`<div class="card"><b>${esc(a.designation)}</b><br><small class="mut">${esc(a.reference)}</small>
   <div class="stk">Stock initial : <b>${+a.stock_initial||0}</b>${cur!==undefined?` · déjà compté : <b>${cur}</b>`:''}</div>
-  <div class="pi"><input id="iqte" type="text" inputmode="decimal" placeholder="Quantité" value="${cur??''}" style="flex:1;width:auto;font-size:20px;text-align:left"><button class="btn s" data-act="calc">🧮</button><button class="btn g" data-act="isave">✓ OK</button></div>
+  <div class="pi"><input id="iqte" type="text" inputmode="decimal" placeholder="Quantité" style="width:110px;flex:none;font-size:20px;text-align:left"><button class="btn s" data-act="calc">🧮</button><button class="btn g" data-act="isave">✓ OK</button></div>
   <div id="iec" class="mut"></div>
   <div>${bc.map(c=>`<span class="bd">${esc(c)}${isAdmin()?` <a data-act="bcdel" data-c="${esc(c)}">✕</a>`:''}</span> `).join('')||'<small class="mut">Aucun code-barres</small>'} <button class="btn s sm" data-act="scanlink">＋ code-barres</button></div></div>`;ecart()}
 function ecart(){const e=$('iec');if(!e||!selArt)return;const v=parseFloat($('iqte').value.replace(',','.')),d=r3(v-(+selArt.stock_initial||0));e.textContent=isNaN(v)?'':'Écart par rapport au stock initial : '+(d>0?'+':'')+d}
 async function isave(){if(!selArt)return;const v=parseFloat($('iqte').value.replace(',','.'));if(isNaN(v)||v<0)return toast('Quantité invalide',1);
-  const a=selArt;if(await doOp({t:'inv',article_id:a.id,qte:v})){toast('✓ '+a.designation.slice(0,28)+' : '+v);selArt=null;renderSel();renderInv();$('iq').focus()}}
+  const a=selArt;if(await doOp({t:'inv',article_id:a.id,qte:v})){toast(v===0?'Retiré de l’inventaire':'✓ '+a.designation.slice(0,28)+' : '+v);selArt=null;renderSel();renderInv();$('iq').focus()}}
 function renderInv(){const ids=[...new Set([...recent,...myInv.keys()])].filter(id=>myInv.has(id)&&artMap.has(id));
   $('ilist').innerHTML=`<p class="mut">Mon inventaire : ${ids.length} article(s)</p>`+table(['Réf.','Désignation','Stock init.','Compté','Écart'],ids.slice(0,60).map(id=>{const a=artMap.get(id),q=myInv.get(id),e=r3(q-(+a.stock_initial||0));return `<tr data-act="pickI" data-id="${id}"><td class="mono">${esc(a.reference)}</td><td>${esc(a.designation)}</td><td>${+a.stock_initial||0}</td><td><b>${q}</b></td><td class="${e?'pr':''}">${e>0?'+':''}${e}</td></tr>`}))}
 function bcdel(d){if(!confirm('Retirer ce code-barres de l’article ?'))return;sb.from('codes_barres').delete().eq('code',d.c).then(async({error})=>{if(error)return toast(error.message,1);toast('Retiré');await loadAll();renderSel()})}
@@ -268,7 +272,7 @@ function ckey(k){if(k==='C')ex='';else if(k==='⌫')ex=ex.slice(0,-1);else if(k=
 async function exportInv(all){const q=new Map();
   if(all)invRows.filter(r=>r.user_id!==me.id).forEach(r=>q.set(r.article_id,(q.get(r.article_id)||0)+Number(r.qte)));
   myInv.forEach((v,k)=>q.set(k,(q.get(k)||0)+v));
-  const l=[...q].map(([id,n])=>[artMap.get(id),n]).filter(x=>x[0]).sort((a,b)=>String(a[0].reference).localeCompare(String(b[0].reference)));
+  const l=[...q].map(([id,n])=>[artMap.get(id),n]).filter(x=>x[0]&&x[1]>0).sort((a,b)=>String(a[0].reference).localeCompare(String(b[0].reference)));
   if(!l.length)return toast('Rien à exporter',1);
   const mx=Math.max(1,...l.map(([a])=>(bcOf.get(a.id)||[]).length)),wb=XLSX.utils.book_new(),d=new Date().toISOString().slice(0,10),nm=(me.nom||'utilisateur').replace(/[\\\/:*?<>|\[\]"]/g,'');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Référence','Désignation','Quantité',...Array.from({length:mx},(_,i)=>'Code-barres '+(i+1))],...l.map(([a,n])=>[a.reference,a.designation,n,...(bcOf.get(a.id)||[])])]),all?'Total':nm.slice(0,31)||'Inventaire');
@@ -299,10 +303,29 @@ async function loop(){const my=++lid,v=$('sv');scanOn=true;let bd=null;
   while(scanOn&&my===lid){await new Promise(r=>setTimeout(r,bd?120:250));if(v.readyState<2)continue;
     try{const c=bd?(await bd.detect(v))[0]?.rawValue:zx?.decode(v).getText();if(c&&scanOn&&my===lid){navigator.vibrate?.(60);closeScan();handleCode(c.trim())}}catch{}}}
 function handleCode(c){const id=bcIdx.get(c);
-  if(scanMode==='link'){const a=selArt;if(!a)return;if(id===a.id)return toast('Ce code est déjà sur cet article');
+  if(scanMode==='link'){const a=linkArt;if(!a)return;if(id===a.id)return toast('Ce code est déjà sur cet article');
     if(id)return toast('Code déjà utilisé par : '+(artMap.get(id)?.designation||'un autre article'),1);
-    return doOp({t:'bc',code:c,article_id:a.id}).then(ok=>{if(ok){toast('Code-barres ajouté');renderSel()}})}
+    return doOp({t:'bc',code:c,article_id:a.id}).then(ok=>{if(ok){toast('Code-barres ajouté');renderSel();renderArt()}})}
+  if(scanMode==='afind'){if(id){$('as').value=c;renderArt()}else toast('Code-barres inconnu. Un admin peut l’associer avec 📷 sur la ligne de l’article',1);return}
   if(id)return pickI({id});pendingCode=c;banner();toast('Code inconnu : cherchez l’article à associer');$('iq').focus()}
 document.addEventListener('input',e=>{if(e.target.id==='iqte')ecart()});$('iq').oninput=$('iq').onfocus=ddi;
+// ══ Export des codes-barres (admin) ══
+function exportBc(){const l=articles.filter(a=>(bcOf.get(a.id)||[]).length).sort((a,b)=>String(a.reference).localeCompare(String(b.reference)));
+  if(!l.length)return toast('Aucun code-barres créé',1);const mx=Math.max(...l.map(a=>bcOf.get(a.id).length)),wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Référence','Désignation',...Array.from({length:mx},(_,i)=>'Code-barres '+(i+1))],...l.map(a=>[a.reference,a.designation,...bcOf.get(a.id)])]),'Codes-barres');
+  XLSX.writeFile(wb,'Codes-barres-'+new Date().toISOString().slice(0,10)+'.xlsx')}
+// ══ Administration (appelle la fonction sécurisée « admin-users » : la clé secrète reste sur le serveur) ══
+let users=[];
+async function adm(b){const {data,error}=await sb.functions.invoke('admin-users',{body:b});
+  if(error){let m=error.message;try{m=(await error.context.json()).error||m}catch{}throw new Error(m)}
+  if(data?.error)throw new Error(data.error);return data}
+async function loadUsers(){try{users=(await adm({action:'list'})).users;renderUsers()}catch(e){toast(e.message,1)}}
+function renderUsers(){$('ulist').innerHTML=table(['Nom','Email','Rôle','Dernière connexion',''],users.map(u=>`<tr><td><b>${esc(u.nom)}</b></td><td>${esc(u.email)}</td><td>${u.id===me.id?'Administrateur (vous)':`<select data-role="${u.id}"><option value="user"${u.role==='user'?' selected':''}>Utilisateur</option><option value="admin"${u.role==='admin'?' selected':''}>Administrateur</option></select>`}</td><td>${u.last?dt(u.last):'—'}</td><td class="nw"><button class="btn s sm" data-act="uname" data-id="${u.id}">✏️</button> <button class="btn s sm" data-act="upass" data-id="${u.id}">🔑</button>${u.id===me.id?'':` <button class="btn r sm" data-act="udel" data-id="${u.id}">🗑️</button>`}</td></tr>`))}
+const act=(fn,ok)=>async()=>{try{await fn();closeModal();toast(ok);loadUsers()}catch(e){toast(e.message,1)}};
+function uadd(){modal('Nouvel utilisateur',`<div class="fg"><label>Email *</label><input id="u_e" type="email" autocomplete="off"></div><div class="fg"><label>Nom (affiché sur les bons) *</label><input id="u_n"></div><div class="fg"><label>Mot de passe * (6 caractères min.)</label><input id="u_p" autocomplete="off"></div><div class="fg"><label>Rôle</label><select id="u_r" style="width:100%"><option value="user">Utilisateur</option><option value="admin">Administrateur</option></select></div>`,act(()=>adm({action:'create',email:$('u_e').value.trim(),nom:$('u_n').value.trim(),password:$('u_p').value,role:$('u_r').value}),'Utilisateur créé'),'Créer')}
+function uname(d){const u=users.find(x=>x.id===d.id);modal('Modifier le nom',`<div class="fg"><label>Nom affiché sur les bons</label><input id="u_n" value="${esc(u.nom)}"></div>`,act(()=>adm({action:'name',id:u.id,nom:$('u_n').value.trim()}),'Nom modifié'))}
+function upass(d){const u=users.find(x=>x.id===d.id);modal('Nouveau mot de passe : '+u.nom,`<div class="fg"><label>Mot de passe (6 caractères min.)</label><input id="u_p" autocomplete="off"></div>`,act(()=>adm({action:'password',id:u.id,password:$('u_p').value}),'Mot de passe modifié'))}
+function udel(d){const u=users.find(x=>x.id===d.id);if(!confirm('Supprimer le compte de '+u.nom+' ('+u.email+') ? Son inventaire sera aussi supprimé.'))return;adm({action:'delete',id:u.id}).then(()=>{toast('Compte supprimé');loadUsers()}).catch(e=>toast(e.message,1))}
+function ureset(){modal('Remise à zéro des inventaires',`<p style="color:#dc2626;font-size:13px;margin-bottom:10px">Les comptages de TOUS les utilisateurs et de l’admin seront effacés définitivement. Exporte le total avant.</p><div class="fg"><label>Tapez REMISE A ZERO pour confirmer</label><input id="u_c" autocomplete="off"></div>`,async()=>{if($('u_c').value.trim().toUpperCase()!=='REMISE A ZERO')return toast('Confirmation incorrecte',1);try{await adm({action:'reset'});closeModal();toast('Tous les inventaires sont remis à zéro');loadAll()}catch(e){toast(e.message,1)}},'Tout remettre à zéro')}
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script></body></html>
