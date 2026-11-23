@@ -64,7 +64,7 @@ select{padding:7px;border:1.5px solid #e0e5ea;border-radius:8px;font:inherit;fon
 <div id="p_hist" class="page"><div class="card"><div class="bar"><h3>📋 Historique</h3><input id="hs" placeholder="🔍 N°, client, commercial…" style="width:200px"><button class="btn r2 sm adm" data-act="delAll" data-t="commandes">🗑️ Tout supprimer</button></div><div id="hist"></div></div></div>
 
 <div id="p_art" class="page"><div class="card"><div class="bar"><h3>📦 Articles <small id="ac"></small></h3><input id="as" placeholder="🔍 Réf. ou désignation…" style="width:200px">
-<button class="btn g sm" data-act="ascan">📷</button><button class="btn s sm adm" data-act="xbc">📥 Codes-barres</button><button class="btn s sm adm" data-act="imp" data-t="articles">📥 Importer</button><button class="btn g sm adm" data-act="add" data-t="articles">➕ Nouveau</button></div><div id="art"></div>
+<button class="btn g sm" data-act="ascan">📷</button><button class="btn s sm adm" data-act="xbc">📥 Codes-barres</button><button class="btn s sm adm" data-act="imp" data-t="articles">📥 Importer</button><button class="btn g sm adm" data-act="add" data-t="articles">➕ Nouveau</button></div><div id="aimp" class="mut"></div><div id="art"></div>
 <div class="adm" style="margin-top:12px"><button class="btn r2 sm" data-act="delAll" data-t="articles">🗑️ Supprimer tous les articles</button></div></div></div>
 
 <div id="p_inv" class="page"><div id="ibn"></div>
@@ -72,9 +72,10 @@ select{padding:7px;border:1.5px solid #e0e5ea;border-radius:8px;font:inherit;fon
 <div id="isel"></div>
 <div class="card"><div class="bar"><button class="btn s sm" data-act="xinv">📥 Exporter mon inventaire</button><button class="btn s sm adm" data-act="xall">📥 Total (admin)</button></div><div id="ilist"></div></div></div>
 <div id="p_adm" class="page"><div class="card"><div class="bar"><h3>👥 Utilisateurs</h3><button class="btn g sm" data-act="uadd">➕ Nouvel utilisateur</button></div><div id="ulist"></div></div>
+<div class="card"><h3>💾 Sauvegarde et restauration</h3><p class="mut">Sauvegarde : télécharge un fichier avec tous les articles, clients, commandes, codes-barres et inventaires (sans les comptes ni les mots de passe). Restauration : remplace les données actuelles par celles d’un fichier de sauvegarde.</p><div class="bar"><button class="btn g sm" data-act="ubackup">💾 Sauvegarder toutes les données</button><button class="btn s sm" data-act="urestore">♻️ Restaurer une sauvegarde</button></div><input type="file" id="fb" accept=".json,application/json" hidden></div>
 <div class="card"><h3>🧹 Remise à zéro des inventaires</h3><p class="mut">Efface les comptages de tous les utilisateurs et de l’admin. Action définitive : exporte le total avant.</p><div class="bar"><button class="btn s sm" data-act="xall">📥 Exporter le total</button><button class="btn r2 sm" data-act="ureset">🗑️ Tout remettre à zéro</button></div></div></div>
 <div id="p_cli" class="page"><div class="card"><div class="bar"><h3>👥 Clients <small id="cc"></small></h3><input id="cs" placeholder="🔍 Code ou nom…" style="width:200px">
-<button class="btn s sm" data-act="imp" data-t="clients">📥 Importer</button><button class="btn g sm" data-act="add" data-t="clients">➕ Nouveau</button></div><div id="cl"></div>
+<button class="btn s sm" data-act="imp" data-t="clients">📥 Importer</button><button class="btn g sm" data-act="add" data-t="clients">➕ Nouveau</button></div><div id="cimp" class="mut"></div><div id="cl"></div>
 <div style="margin-top:12px"><button class="btn r2 sm" data-act="delAll" data-t="clients">🗑️ Supprimer tous les clients</button></div></div></div>
 <input type="file" id="fi" accept=".xlsx,.xls,.csv" hidden>
 </div>
@@ -93,7 +94,7 @@ const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLo
 const match=(t,q)=>{t=norm(t);return norm(q).split(/\s+/).filter(Boolean).every(w=>t.includes(w))};
 const r3=n=>Math.round(Number(n||0)*1000)/1000, fmt=n=>r3(n).toFixed(3).replace('.',',')+' DT';
 const dt=s=>new Date(s).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'});
-let me=null,clients=[],articles=[],commandes=[],panier=[],selClient=null,okFn,codes=[],invRows=[],bcIdx=new Map(),bcOf=new Map(),myInv=new Map(),artMap=new Map(),recent=[],selArt=null,pendingCode=null,linkArt=null;
+let me=null,clients=[],articles=[],commandes=[],panier=[],selClient=null,okFn,codes=[],invRows=[],bcIdx=new Map(),bcOf=new Map(),myInv=new Map(),artMap=new Map(),recent=[],selArt=null,pendingCode=null,linkArt=null,metaRows=[];
 const isAdmin=()=>me?.role==='admin';
 const rd=async q=>{const {data,error}=await q;if(error)throw error;return data};
 
@@ -120,17 +121,17 @@ async function all(t,o){let r=[],i=0;for(;;){const d=await rd(sb.from(t).select(
 const idb=(m,k,v)=>new Promise((res,rej)=>{const o=indexedDB.open('bc',1);o.onupgradeneeded=()=>o.result.createObjectStore('kv');o.onerror=()=>rej(o.error);
   o.onsuccess=()=>{const s=o.result.transaction('kv',m).objectStore('kv'),r=m==='readonly'?s.get(k):s.put(v,k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}});
 async function loadAll(){
-  try{[clients,articles,codes,invRows,commandes]=await Promise.all([all('clients','nom'),all('articles','designation'),all('codes_barres','code'),all('inventaire','article_id'),rd(sb.from('commandes').select('*').order('created_at',{ascending:false}).limit(500))]);
-    $('off').textContent='';idb('readwrite','cat',{clients,articles,codes,invRows,commandes,t:Date.now()}).catch(()=>{})}
+  try{[clients,articles,codes,invRows,commandes,metaRows]=await Promise.all([all('clients','nom'),all('articles','designation'),all('codes_barres','code'),all('inventaire','article_id'),rd(sb.from('commandes').select('*').order('created_at',{ascending:false}).limit(500)),rd(sb.from('meta').select('*'))]);
+    $('off').textContent='';lastLoad=Date.now();idb('readwrite','cat',{clients,articles,codes,invRows,commandes,metaRows,t:Date.now()}).catch(()=>{})}
   catch(e){const c=await idb('readonly','cat').catch(()=>null);if(!c)return toast('Chargement impossible : '+e.message,1);
-    clients=c.clients;articles=c.articles;commandes=c.commandes;codes=c.codes||[];invRows=c.invRows||[];$('off').textContent='📴 données du '+dt(c.t)}
+    clients=c.clients;articles=c.articles;commandes=c.commandes;codes=c.codes||[];invRows=c.invRows||[];metaRows=c.metaRows||[];$('off').textContent='📴 données du '+dt(c.t)}
   idx();render()}
 function render(){renderHist();renderArt();if(isAdmin())renderCli();cinfo();renderInv()}
 function go(p){if((p==='cli'||p==='adm')&&!isAdmin())return;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('on',x.id==='p_'+p));document.querySelectorAll('.nb[data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===p));if(p==='adm')loadUsers()}
 
-function renderArt(){const q=$('as').value,l=articles.filter(a=>match((a.reference||'')+' '+a.designation+' '+(bcOf.get(a.id)||[]).join(' '),q));$('ac').textContent=`(${articles.length})`;
+function renderArt(){const q=$('as').value,l=articles.filter(a=>match((a.reference||'')+' '+a.designation+' '+(bcOf.get(a.id)||[]).join(' '),q));$('ac').textContent=`(${articles.length})`;$('aimp').textContent=impTxt('articles');
   $('art').innerHTML=table(['Réf.','Désignation','!Stock init.','Prix TTC','#'],l.slice(0,100).map(a=>`<tr><td class="mono">${esc(a.reference)}</td><td><b>${esc(a.designation)}</b>${a.variantes?` <span class="bd">${a.variantes.split(',').length} variantes</span>`:''}${(bcOf.get(a.id)||[]).length?`<br><small class="mono">${bcOf.get(a.id).map(esc).join(' · ')}</small>`:''}</td><td class="adm">${+a.stock_initial||0}</td><td class="pr">${fmt(a.prix)}</td><td class="adm nw"><button class="btn s sm" data-act="bcscan" data-id="${a.id}">📷</button> ${btns('articles',a.id)}</td></tr>`))+(l.length>100?`<p class="mut">100 premiers résultats sur ${l.length} — affinez la recherche.</p>`:'')}
-function renderCli(){const q=$('cs').value,l=clients.filter(c=>match((c.code||'')+' '+c.nom,q));$('cc').textContent=`(${clients.length})`;
+function renderCli(){const q=$('cs').value,l=clients.filter(c=>match((c.code||'')+' '+c.nom,q));$('cc').textContent=`(${clients.length})`;$('cimp').textContent=impTxt('clients');
   $('cl').innerHTML=table(['Code','Nom','Tél.','Adresse','#'],l.slice(0,100).map(c=>`<tr><td class="mono">${esc(c.code)}</td><td><b>${esc(c.nom)}</b></td><td>${esc(c.telephone)}</td><td>${esc(c.adresse)}</td><td class="adm nw">${btns('clients',c.id)}</td></tr>`))+(l.length>100?`<p class="mut">100 premiers résultats sur ${l.length}.</p>`:'')}
 function renderHist(){const q=$('hs').value,l=allCmd().filter(c=>match(c.numero+' '+(c.client?.nom||'')+' '+c.commercial,q));
   $('hist').innerHTML=table(['N°','Client','Commercial','Date','Total',''],l.slice(0,150).map(c=>`<tr><td><b>${esc(c.numero)}</b></td><td>${esc(c.client?.nom)}</td><td>${esc(c.commercial)}</td><td>${dt(c.created_at)}</td><td class="pr">${fmt(c.total)}</td><td class="nw"><button class="btn s sm" data-act="pdf" data-id="${c.id}">📄</button> <button class="btn s sm" data-act="xls" data-id="${c.id}">📊</button> <button class="btn r sm adm" data-act="del" data-t="commandes" data-id="${c.id}">🗑️</button></td></tr>`))}
@@ -158,7 +159,12 @@ async function flushQ(){const q=getQ(),keep=[];if(!q.length||!me)return;try{awai
   for(const o of q){const {error}=await sb.from('commandes').insert(o);if(error&&error.code!=='23505'){if(!error.code||/^PGRST30|jwt/i.test(error.code+error.message))keep.push(o);else toast(error.message,1)}}
   setQ(keep);if(keep.length<q.length){toast('Commandes en attente envoyées');loadAll()}}
 const allCmd=()=>{const ids=new Set(commandes.map(c=>c.id));return [...getQ().filter(o=>!ids.has(o.id)).map(o=>({...o,numero:'PROVISOIRE'})),...commandes]};
-addEventListener('online',()=>{flushQ();flushQ2()});
+let lastLoad=0;
+async function sync(){if(!me||!navigator.onLine)return;await flushQ();await flushQ2();await loadAll()}
+addEventListener('online',()=>{toast('📶 Connexion retrouvée : synchronisation…');sync()});
+addEventListener('offline',()=>{$('off').textContent='📴 hors ligne : les saisies sont gardées sur ce téléphone'});
+setInterval(()=>{if(me&&navigator.onLine&&getQ().length+getQ2().length)sync()},20000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&me&&navigator.onLine&&Date.now()-lastLoad>120000)sync()});
 async function valider(){
   const o={id:crypto.randomUUID(),client_id:selClient.id,client:{code:selClient.code,nom:selClient.nom,telephone:selClient.telephone,adresse:selClient.adresse},commercial:me.nom,created_at:new Date().toISOString(),
     lignes:panier.map(p=>({...p,total:r3(p.prix*p.qte)})),total:r3(panier.reduce((s,p)=>s+p.prix*p.qte,0)),notes:$('notes').value.trim()};
@@ -172,9 +178,8 @@ function formModal(t,item){const A=t==='articles',f=A?[['reference','Référence
   modal(item?'Modifier':'Nouveau',f.map(([k,l,ty])=>`<div class="fg"><label>${l}</label><input id="f_${k}" type="${ty||'text'}" step="0.001" value="${esc(item?.[k])}"></div>`).join(''),async()=>{
     const d={};f.forEach(([k])=>d[k]=$('f_'+k).value.trim());
     if(A){d.stock_initial=parseFloat((d.stock_initial||'0').replace(',','.'))||0;d.prix=parseFloat(d.prix.replace(',','.'));if(!d.designation||!(d.prix>=0))return toast('Désignation et prix obligatoires',1)}else if(!d.nom)return toast('Le nom est obligatoire',1);
-    const {error}=await(item?sb.from(t).update(d).eq('id',item.id):sb.from(t).insert(d));
-    if(error)return toast(error.message,1);closeModal();toast('Enregistré');loadAll()})}
-async function del(t,id){if(!confirm('Supprimer ?'))return;const {error}=await sb.from(t).delete().eq('id',id);if(error)return toast(error.message,1);toast('Supprimé');loadAll()}
+    if(!await doOp({t:'tbl',tb:t,k:item?'upd':'ins',id:item?item.id:crypto.randomUUID(),d}))return;closeModal();toast('Enregistré')})}
+async function del(t,id){if(!confirm('Supprimer ?'))return;if(t!=='commandes'){if(await doOp({t:'tbl',tb:t,k:'del',id}))toast('Supprimé');return}const {error}=await sb.from(t).delete().eq('id',id);if(error)return toast(error.message,1);toast('Supprimé');loadAll()}
 async function delAll(t){if(prompt('Tapez SUPPRIMER pour effacer tout le contenu de « '+t+' »')!=='SUPPRIMER')return;const {error}=await sb.from(t).delete().not('id','is',null);if(error)return toast(error.message,1);toast('Tout est supprimé');loadAll()}
 const stk=r=>{const v=['stock_initial','stock initial','stock','qte','quantite'].map(k=>r[k]).find(v=>v!==undefined);return v===undefined?{}:{stock_initial:parseFloat(String(v).replace(/\s/g,'').replace(',','.'))||0}};
 const CFG={articles:{key:r=>norm(r.reference)||norm(r.designation),map:r=>({reference:r.reference||r.ref||r.code||'',designation:r.designation||r.libelle||r.article||'',prix:parseFloat(String(r.prix||r.price||'0').replace(/\s/g,'').replace(',','.'))||0,variantes:r.variantes||r.parfum||'',...stk(r)}),ok:x=>x.designation&&x.prix>0},
@@ -186,7 +191,9 @@ async function importFile(t,file){const C=CFG[t],wb=XLSX.read(await file.arrayBu
   for(const r of rows){const x=C.map(r);if(!C.ok(x))continue;const k=C.key(x);if(seen.has(k))continue;seen.add(k);const e=ex.get(k);if(!e)ins.push(x);else if(!same(e,x))upd.push({...x,id:e.id})}
   for(let i=0;i<ins.length;i+=500)await rd(sb.from(t).insert(ins.slice(i,i+500)));
   for(let i=0;i<upd.length;i+=500)await rd(sb.from(t).upsert(upd.slice(i,i+500)));
+  await rd(sb.from('meta').upsert({key:'import_'+t,value:{at:new Date().toISOString(),ajoutes:ins.length,maj:upd.length,fichier:file.name}}));
   toast(`${ins.length} ajouté(s), ${upd.length} mis à jour`);loadAll()}
+const impTxt=k=>{const v=metaRows.find(r=>r.key==='import_'+k)?.value;return v?`Dernière importation : ${dt(v.at)} — ${v.ajoutes} ajouté(s), ${v.maj} mis à jour${v.fichier?' ('+v.fichier+')':''}`:'Dernière importation : pas encore enregistrée'}
 
 // ── Exports ──
 function xls(c){const h=[['BON DE COMMANDE : '+c.numero],['Client : '+(c.client?.nom||'')],['Date : '+dt(c.created_at)],['Commercial : '+c.commercial],['']],rows=l=>l.flatMap(x=>[[x.reference||''],[x.qte]]),wb=XLSX.utils.book_new();
@@ -211,7 +218,7 @@ function pdf(c){const {jsPDF}=window.jspdf,d=new jsPDF(),W=210,M=12,X=[M,50,122,
   d.save('BC-'+c.numero+'.pdf')}
 
 // ── Événements (aucun onclick inline : plus de bug avec les apostrophes) ──
-const A={cscan:()=>openScan('cmd'),ascan:()=>openScan('afind'),bcscan:d=>{linkArt=artMap.get(d.id);openScan('link')},xbc:exportBc,uadd,uname,upass,udel,ureset,scan:()=>openScan('find'),scanlink:()=>{linkArt=selArt;openScan('link')},scanx:closeScan,torch,cam:camNext,calc,isave,pickI,pcx:()=>{pendingCode=null;banner()},bcdel,xinv:()=>exportInv(false),xall:()=>exportInv(true),logout:async()=>{if((getQ().length||getQ2().length)&&!confirm('Des commandes ne sont pas encore envoyées. Quitter quand même ?'))return;localStorage.removeItem('bcme');await idb('readwrite','cat',null).catch(()=>{});try{await sb.auth.signOut()}catch{}location.reload()},refresh:async()=>{await flushQ();await flushQ2();await loadAll();toast('Actualisé')},close:closeModal,
+const A={ubackup,urestore:()=>$('fb').click(),cscan:()=>openScan('cmd'),ascan:()=>openScan('afind'),bcscan:d=>{linkArt=artMap.get(d.id);openScan('link')},xbc:exportBc,uadd,uname,upass,udel,ureset,scan:()=>openScan('find'),scanlink:()=>{linkArt=selArt;openScan('link')},scanx:closeScan,torch,cam:camNext,calc,isave,pickI,pcx:()=>{pendingCode=null;banner()},bcdel,xinv:()=>exportInv(false),xall:()=>exportInv(true),logout:async()=>{if((getQ().length||getQ2().length)&&!confirm('Des commandes ne sont pas encore envoyées. Quitter quand même ?'))return;localStorage.removeItem('bcme');await idb('readwrite','cat',null).catch(()=>{});try{await sb.auth.signOut()}catch{}location.reload()},refresh:async()=>{await flushQ();await flushQ2();await loadAll();toast('Actualisé')},close:closeModal,
   pickC:d=>{selClient=clients.find(c=>c.id===d.id);$('cq').value='';$('ddc').hidden=true;cinfo()},clr:()=>{selClient=null;cinfo()},pickA,
   inc:d=>{panier[d.i].qte++;cart()},dec:d=>{if(--panier[d.i].qte<1)panier.splice(d.i,1);cart()},rm:d=>{panier.splice(d.i,1);cart()},valider,
   edit:d=>formModal(d.t,(d.t==='articles'?articles:clients).find(x=>x.id===d.id)),add:d=>formModal(d.t),del:d=>del(d.t,d.id),delAll:d=>delAll(d.t),
@@ -221,6 +228,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('.dd-wrap'))document.
 document.addEventListener('change',async e=>{const t=e.target;
   if(t.dataset.role){try{await adm({action:'role',id:t.dataset.role,role:t.value});toast('Rôle modifié')}catch(x){toast(x.message,1)}loadUsers()}
   if(t.dataset.q!==undefined){panier[t.dataset.q].qte=Math.max(1,parseInt(t.value)||1);cart()}
+  if(t.id==='fb'&&t.files[0]){await onBackupFile(t.files[0]);t.value=''}
   if(t.id==='fi'&&t.files[0]){try{await importFile(t.dataset.t,t.files[0])}catch(x){toast('Import : '+x.message,1)}t.value=''}});
 $('mok').onclick=async()=>{$('mok').disabled=true;try{await okFn()}finally{$('mok').disabled=false}};
 $('ov').onclick=e=>{if(e.target===$('ov'))closeModal()};addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeScan()}if(e.key==='Enter'){if(e.target.id==='iqte')isave();if(e.target.id==='iq'){const id=bcIdx.get(e.target.value.trim());if(id)pickI({id})}if(e.target.id==='aq'){const id=bcIdx.get(e.target.value.trim());if(id)pickA({id})}if(e.target.dataset.q!==undefined){e.target.blur();$('aq').focus()}}});
@@ -230,13 +238,13 @@ $('cq').oninput=$('cq').onfocus=()=>dd('c');$('aq').oninput=$('aq').onfocus=()=>
 const getQ2=()=>JSON.parse(localStorage.getItem('bcq2')||'[]'),setQ2=q=>{localStorage.setItem('bcq2',JSON.stringify(q));setQ(getQ())};
 const isNet=e=>!e.code||/^PGRST30|jwt/i.test(e.code+e.message);
 function addBc(c,id){bcIdx.set(c,id);const l=bcOf.get(id)||[];if(!l.includes(c))l.push(c);bcOf.set(id,l)}
-function applyOp(o){if(o.t==='inv'){if(o.qte>0){myInv.set(o.article_id,o.qte);recent=[o.article_id,...recent.filter(x=>x!==o.article_id)]}else myInv.delete(o.article_id)}else addBc(o.code,o.article_id)}
+function applyOp(o){if(o.t==='inv'){if(o.qte>0){myInv.set(o.article_id,o.qte);recent=[o.article_id,...recent.filter(x=>x!==o.article_id)]}else myInv.delete(o.article_id)}else if(o.t==='tbl'){const L=o.tb==='articles'?articles:clients,i=L.findIndex(x=>x.id===o.id);if(o.k==='del'){if(i>=0)L.splice(i,1)}else if(i>=0)Object.assign(L[i],o.d);else L.push({id:o.id,...o.d})}else addBc(o.code,o.article_id)}
 function idx(){artMap=new Map(articles.map(a=>[a.id,a]));bcIdx=new Map();bcOf=new Map();codes.forEach(c=>addBc(c.code,c.article_id));
-  myInv=new Map(invRows.filter(r=>r.user_id===me.id&&Number(r.qte)>0).map(r=>[r.article_id,Number(r.qte)]));getQ2().forEach(applyOp)}
-const sendOp=o=>o.t==='inv'&&o.qte===0?sb.from('inventaire').delete().eq('user_id',me.id).eq('article_id',o.article_id):o.t==='inv'?sb.from('inventaire').upsert({user_id:me.id,article_id:o.article_id,qte:o.qte,updated_at:new Date().toISOString()},{onConflict:'user_id,article_id'}):sb.from('codes_barres').insert({code:o.code,article_id:o.article_id});
+  myInv=new Map(invRows.filter(r=>r.user_id===me.id&&Number(r.qte)>0).map(r=>[r.article_id,Number(r.qte)]));getQ2().forEach(applyOp);artMap=new Map(articles.map(a=>[a.id,a]))}
+const sendOp=o=>o.t==='tbl'?(o.k==='ins'?sb.from(o.tb).insert({...o.d,id:o.id}):o.k==='upd'?sb.from(o.tb).update(o.d).eq('id',o.id):sb.from(o.tb).delete().eq('id',o.id)):o.t==='inv'&&o.qte===0?sb.from('inventaire').delete().eq('user_id',me.id).eq('article_id',o.article_id):o.t==='inv'?sb.from('inventaire').upsert({user_id:me.id,article_id:o.article_id,qte:o.qte,updated_at:new Date().toISOString()},{onConflict:'user_id,article_id'}):sb.from('codes_barres').insert({code:o.code,article_id:o.article_id});
 async function doOp(o){const {error}=await sendOp(o);
   if(error&&!isNet(error)){toast(error.code==='23505'?'Ce code-barres est déjà utilisé par un autre article':error.message,1);return false}
-  if(error)setQ2([...getQ2(),o]);applyOp(o);return true}
+  if(error)setQ2([...getQ2(),o]);applyOp(o);if(o.t==='tbl'){idx();render()}return true}
 async function flushQ2(){const q=getQ2(),keep=[];if(!q.length||!me)return;try{await sb.auth.getSession()}catch{}
   for(const o of q){const {error}=await sendOp(o);if(error&&isNet(error))keep.push(o);else if(error&&error.code!=='23505')toast(error.message,1)}
   setQ2(keep);if(keep.length<q.length)loadAll()}
@@ -312,6 +320,16 @@ function handleCode(c){const id=bcIdx.get(c);
   if(scanMode==='afind'){if(id){$('as').value=c;renderArt()}else toast('Code-barres inconnu. Un admin peut l’associer avec 📷 sur la ligne de l’article',1);return}
   if(id)return pickI({id});pendingCode=c;banner();toast('Code inconnu : cherchez l’article à associer');$('iq').focus()}
 document.addEventListener('input',e=>{if(e.target.id==='iqte')ecart()});$('iq').oninput=$('iq').onfocus=ddi;
+// ══ Sauvegarde / restauration (atomique côté serveur) ══
+async function getBackup(){if(!navigator.onLine)throw new Error('Connexion Internet requise pour cette action');const {data,error}=await sb.rpc('export_backup');if(error)throw new Error(error.message);return data}
+function dl(name,obj){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(obj)],{type:'application/json'}));a.download=name;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
+async function ubackup(){try{const b=await getBackup();dl('Sauvegarde-BC-'+new Date().toISOString().slice(0,10)+'.json',b);toast(`Sauvegarde téléchargée : ${b.articles.length} articles, ${b.clients.length} clients, ${b.commandes.length} commandes`)}catch(e){toast(e.message,1)}}
+async function onBackupFile(f){let b;try{b=JSON.parse(await f.text())}catch{return toast('Fichier illisible',1)}
+  if(b.app!=='bon-commande'||!Array.isArray(b.articles)||!Array.isArray(b.clients))return toast('Ce fichier n’est pas une sauvegarde valide',1);
+  modal('Restaurer la sauvegarde',`<p style="font-size:13px">Sauvegarde du <b>${dt(b.created)}</b> : ${b.articles.length} articles, ${b.clients.length} clients, ${(b.commandes||[]).length} commandes, ${(b.codes_barres||[]).length} codes-barres, ${(b.inventaire||[]).length} lignes d’inventaire.</p><p style="color:#dc2626;font-size:13px;margin:8px 0">Toutes les données actuelles seront REMPLACÉES (les comptes utilisateurs ne sont pas touchés). Une copie de sécurité des données actuelles est téléchargée automatiquement avant.</p><div class="fg"><label>Tapez RESTAURER pour confirmer</label><input id="u_c" autocomplete="off"></div>`,async()=>{
+    if($('u_c').value.trim().toUpperCase()!=='RESTAURER')return toast('Confirmation incorrecte',1);
+    try{await flushQ();await flushQ2();dl('Securite-avant-restauration-'+new Date().toISOString().slice(0,10)+'.json',await getBackup());
+      const {error}=await sb.rpc('restore_backup',{p:b});if(error)throw new Error(error.message);closeModal();toast('Restauration terminée');await loadAll()}catch(e){toast(e.message,1)}},'Restaurer')}
 function focusQty(id){const i=panier.findIndex(p=>p.id===id);setTimeout(()=>{const q=document.querySelector(`[data-q="${i}"]`);if(q){q.focus();q.select()}},80)}
 // ══ Export des codes-barres (admin) ══
 function exportBc(){const l=articles.filter(a=>(bcOf.get(a.id)||[]).length).sort((a,b)=>String(a.reference).localeCompare(String(b.reference)));
@@ -320,7 +338,7 @@ function exportBc(){const l=articles.filter(a=>(bcOf.get(a.id)||[]).length).sort
   XLSX.writeFile(wb,'Codes-barres-'+new Date().toISOString().slice(0,10)+'.xlsx')}
 // ══ Administration (appelle la fonction sécurisée « admin-users » : la clé secrète reste sur le serveur) ══
 let users=[];
-async function adm(b){const {data,error}=await sb.functions.invoke('admin-users',{body:b});
+async function adm(b){if(!navigator.onLine)throw new Error('Connexion Internet requise pour cette action');const {data,error}=await sb.functions.invoke('admin-users',{body:b});
   if(error){let m=error.message;try{m=(await error.context.json()).error||m}catch{}throw new Error(m)}
   if(data?.error)throw new Error(data.error);return data}
 async function loadUsers(){try{users=(await adm({action:'list'})).users;renderUsers()}catch(e){toast(e.message,1)}}
