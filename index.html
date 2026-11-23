@@ -56,7 +56,7 @@ select{padding:7px;border:1.5px solid #e0e5ea;border-radius:8px;font:inherit;fon
 
 <div id="p_cmd" class="page">
 <div class="card" style="position:relative;z-index:20"><h3>👤 Client</h3><div class="dd-wrap"><input id="cq" placeholder="🔍 Code ou nom du client…" autocomplete="off"><div id="ddc" class="dd" hidden></div></div><div id="cinfo" style="margin-top:8px"></div></div>
-<div class="card" style="position:relative;z-index:10"><h3>📦 Articles</h3><div class="dd-wrap"><input id="aq" placeholder="🔍 Référence ou désignation…" autocomplete="off"><div id="dda" class="dd" hidden></div></div><div id="cart" style="margin-top:10px"></div></div>
+<div class="card" style="position:relative;z-index:10"><div class="bar" style="margin-bottom:8px"><h3>📦 Articles</h3><b id="total2" class="pr" style="font-size:17px">0,000 DT</b></div><div class="bar" style="margin:0"><div class="dd-wrap" style="flex:1"><input id="aq" placeholder="🔍 Référence, désignation ou code-barres…" autocomplete="off"><div id="dda" class="dd" hidden></div></div><button class="btn g" data-act="cscan">📷</button></div><div id="cart" style="margin-top:10px"></div></div>
 <div class="card"><h3>📝 Notes</h3><textarea id="notes" rows="2" placeholder="Délais, conditions…"></textarea></div>
 <div class="tot"><span>TOTAL TTC</span><span id="total">0,000 DT</span></div>
 <button id="vbtn" class="btn g" style="width:100%;margin-top:10px;padding:13px" data-act="valider" disabled>✅ Valider la commande</button></div>
@@ -137,15 +137,15 @@ function renderHist(){const q=$('hs').value,l=allCmd().filter(c=>match(c.numero+
 
 // ── Nouvelle commande ──
 function dd(k){const c=k==='c',q=$(c?'cq':'aq').value,box=$(c?'ddc':'dda');
-  const l=(c?clients:articles).filter(x=>match(c?(x.code||'')+' '+x.nom:(x.reference||'')+' '+x.designation,q)).slice(0,40);
+  const l=(c?clients:articles).filter(x=>match(c?(x.code||'')+' '+x.nom:(x.reference||'')+' '+x.designation+' '+(bcOf.get(x.id)||[]).join(' '),q)).slice(0,40);
   box.innerHTML=l.map(x=>c?`<div class="di" data-act="pickC" data-id="${x.id}"><b>${esc(x.nom)}</b><small>${esc(x.code)}</small></div>`:`<div class="di" data-act="pickA" data-id="${x.id}"><span><b>${esc(x.designation)}</b><br><small>${esc(x.reference)}</small></span><span class="pr">${fmt(x.prix)}</span></div>`).join('')||'<div class="di">Aucun résultat</div>';box.hidden=false}
 function cinfo(){$('cinfo').innerHTML=selClient?`<div class="pi"><div class="pn"><b>${esc(selClient.nom)}</b><small>${esc(selClient.code)} ${esc(selClient.telephone)} ${esc(selClient.adresse)}</small></div><button class="btn s sm" data-act="clr">Changer</button></div>`:'';cart()}
 function cart(){$('cart').innerHTML=panier.map((p,i)=>`<div class="pi"><div class="pn"><b>${esc(p.designation)}</b><small>${esc(p.reference)}${p.detail?' — '+esc(p.detail):''}</small></div>${p.detail?`<b>×${p.qte}</b>`:`<button class="q" data-act="dec" data-i="${i}">−</button><input type="number" min="1" value="${p.qte}" data-q="${i}"><button class="q" data-act="inc" data-i="${i}">+</button>`}<span class="pr">${fmt(p.prix*p.qte)}</span><button class="btn r sm" data-act="rm" data-i="${i}">✕</button></div>`).join('');
-  $('total').textContent=fmt(panier.reduce((s,p)=>s+p.prix*p.qte,0));$('vbtn').disabled=!selClient||!panier.length}
+  const T=fmt(panier.reduce((s,p)=>s+p.prix*p.qte,0));$('total').textContent=T;$('total2').textContent=T;$('vbtn').disabled=!selClient||!panier.length}
 function addLine(a,detail,qte){const j=panier.findIndex(p=>p.id===a.id);if(j>=0){if(detail)panier.splice(j,1);else{panier[j].qte+=qte;return cart()}}
   panier.unshift({id:a.id,reference:a.reference||'',designation:a.designation,prix:Number(a.prix),qte,detail});cart()}
 function pickA(d){const a=articles.find(x=>x.id===d.id);$('aq').value='';$('dda').hidden=true;
-  const v=(a.variantes||'').split(',').map(s=>s.trim()).filter(Boolean);if(!v.length)return addLine(a,'',1);
+  const v=(a.variantes||'').split(',').map(s=>s.trim()).filter(Boolean);if(!v.length){addLine(a,'',1);return focusQty(a.id)}
   modal(a.designation,v.map((x,i)=>`<label class="vr"><input type="checkbox" data-v="${i}"><span>${esc(x)}</span><input type="number" min="1" value="1" data-vq="${i}"></label>`).join(''),()=>{
     const s=v.map((x,i)=>[x,+document.querySelector(`[data-vq="${i}"]`).value||1,document.querySelector(`[data-v="${i}"]`).checked]).filter(x=>x[2]);
     if(!s.length)return toast('Choisissez au moins une variante',1);
@@ -211,7 +211,7 @@ function pdf(c){const {jsPDF}=window.jspdf,d=new jsPDF(),W=210,M=12,X=[M,50,122,
   d.save('BC-'+c.numero+'.pdf')}
 
 // ── Événements (aucun onclick inline : plus de bug avec les apostrophes) ──
-const A={ascan:()=>openScan('afind'),bcscan:d=>{linkArt=artMap.get(d.id);openScan('link')},xbc:exportBc,uadd,uname,upass,udel,ureset,scan:()=>openScan('find'),scanlink:()=>{linkArt=selArt;openScan('link')},scanx:closeScan,torch,cam:camNext,calc,isave,pickI,pcx:()=>{pendingCode=null;banner()},bcdel,xinv:()=>exportInv(false),xall:()=>exportInv(true),logout:async()=>{if((getQ().length||getQ2().length)&&!confirm('Des commandes ne sont pas encore envoyées. Quitter quand même ?'))return;localStorage.removeItem('bcme');await idb('readwrite','cat',null).catch(()=>{});try{await sb.auth.signOut()}catch{}location.reload()},refresh:async()=>{await flushQ();await flushQ2();await loadAll();toast('Actualisé')},close:closeModal,
+const A={cscan:()=>openScan('cmd'),ascan:()=>openScan('afind'),bcscan:d=>{linkArt=artMap.get(d.id);openScan('link')},xbc:exportBc,uadd,uname,upass,udel,ureset,scan:()=>openScan('find'),scanlink:()=>{linkArt=selArt;openScan('link')},scanx:closeScan,torch,cam:camNext,calc,isave,pickI,pcx:()=>{pendingCode=null;banner()},bcdel,xinv:()=>exportInv(false),xall:()=>exportInv(true),logout:async()=>{if((getQ().length||getQ2().length)&&!confirm('Des commandes ne sont pas encore envoyées. Quitter quand même ?'))return;localStorage.removeItem('bcme');await idb('readwrite','cat',null).catch(()=>{});try{await sb.auth.signOut()}catch{}location.reload()},refresh:async()=>{await flushQ();await flushQ2();await loadAll();toast('Actualisé')},close:closeModal,
   pickC:d=>{selClient=clients.find(c=>c.id===d.id);$('cq').value='';$('ddc').hidden=true;cinfo()},clr:()=>{selClient=null;cinfo()},pickA,
   inc:d=>{panier[d.i].qte++;cart()},dec:d=>{if(--panier[d.i].qte<1)panier.splice(d.i,1);cart()},rm:d=>{panier.splice(d.i,1);cart()},valider,
   edit:d=>formModal(d.t,(d.t==='articles'?articles:clients).find(x=>x.id===d.id)),add:d=>formModal(d.t),del:d=>del(d.t,d.id),delAll:d=>delAll(d.t),
@@ -223,7 +223,7 @@ document.addEventListener('change',async e=>{const t=e.target;
   if(t.dataset.q!==undefined){panier[t.dataset.q].qte=Math.max(1,parseInt(t.value)||1);cart()}
   if(t.id==='fi'&&t.files[0]){try{await importFile(t.dataset.t,t.files[0])}catch(x){toast('Import : '+x.message,1)}t.value=''}});
 $('mok').onclick=async()=>{$('mok').disabled=true;try{await okFn()}finally{$('mok').disabled=false}};
-$('ov').onclick=e=>{if(e.target===$('ov'))closeModal()};addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeScan()}if(e.key==='Enter'){if(e.target.id==='iqte')isave();if(e.target.id==='iq'){const id=bcIdx.get(e.target.value.trim());if(id)pickI({id})}}});
+$('ov').onclick=e=>{if(e.target===$('ov'))closeModal()};addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeScan()}if(e.key==='Enter'){if(e.target.id==='iqte')isave();if(e.target.id==='iq'){const id=bcIdx.get(e.target.value.trim());if(id)pickI({id})}if(e.target.id==='aq'){const id=bcIdx.get(e.target.value.trim());if(id)pickA({id})}if(e.target.dataset.q!==undefined){e.target.blur();$('aq').focus()}}});
 $('hs').oninput=renderHist;$('as').oninput=renderArt;$('cs').oninput=renderCli;
 $('cq').oninput=$('cq').onfocus=()=>dd('c');$('aq').oninput=$('aq').onfocus=()=>dd('a');
 // ══ Inventaire ══
@@ -252,12 +252,14 @@ function renderSel(){const a=selArt,el=$('isel');if(!a){el.innerHTML='';return}
   const cur=myInv.get(a.id),bc=bcOf.get(a.id)||[];
   el.innerHTML=`<div class="card"><b>${esc(a.designation)}</b><br><small class="mut">${esc(a.reference)}</small>
   <div class="stk">Stock initial : <b>${+a.stock_initial||0}</b>${cur!==undefined?` · déjà compté : <b>${cur}</b>`:''}</div>
-  <div class="pi"><input id="iqte" type="text" inputmode="decimal" placeholder="Quantité" style="width:110px;flex:none;font-size:20px;text-align:left"><button class="btn s" data-act="calc">🧮</button><button class="btn g" data-act="isave">✓ OK</button></div>
+  <div class="pi"><input id="iqte" type="text" inputmode="decimal" placeholder="${cur!==undefined?'Quantité à ajouter':'Quantité'}" style="width:110px;flex:none;font-size:20px;text-align:left"><button class="btn s" data-act="calc">🧮</button><button class="btn g" data-act="isave">✓ OK</button></div>
   <div id="iec" class="mut"></div>
   <div>${bc.map(c=>`<span class="bd">${esc(c)}${isAdmin()?` <a data-act="bcdel" data-c="${esc(c)}">✕</a>`:''}</span> `).join('')||'<small class="mut">Aucun code-barres</small>'} <button class="btn s sm" data-act="scanlink">＋ code-barres</button></div></div>`;ecart()}
-function ecart(){const e=$('iec');if(!e||!selArt)return;const v=parseFloat($('iqte').value.replace(',','.')),d=r3(v-(+selArt.stock_initial||0));e.textContent=isNaN(v)?'':'Écart par rapport au stock initial : '+(d>0?'+':'')+d}
-async function isave(){if(!selArt)return;const v=parseFloat($('iqte').value.replace(',','.'));if(isNaN(v)||v<0)return toast('Quantité invalide',1);
-  const a=selArt;if(await doOp({t:'inv',article_id:a.id,qte:v})){toast(v===0?'Retiré de l’inventaire':'✓ '+a.designation.slice(0,28)+' : '+v);selArt=null;renderSel();renderInv();$('iq').focus()}}
+function ecart(){const e=$('iec');if(!e||!selArt)return;const v=parseFloat($('iqte').value.replace(',','.'));
+  if(isNaN(v)){e.textContent='La quantité saisie s’ajoute à l’ancienne (nombre négatif pour corriger, via 🧮)';return}
+  const n=Math.max(0,r3((myInv.get(selArt.id)||0)+v)),d=r3(n-(+selArt.stock_initial||0));e.textContent='Nouveau total : '+n+' · écart vs stock initial : '+(d>0?'+':'')+d}
+async function isave(){if(!selArt)return;const v=parseFloat($('iqte').value.replace(',','.'));if(isNaN(v))return toast('Quantité invalide',1);
+  const a=selArt,n=Math.max(0,r3((myInv.get(a.id)||0)+v));if(await doOp({t:'inv',article_id:a.id,qte:n})){toast(n===0?'Retiré de l’inventaire':'✓ '+a.designation.slice(0,28)+' : total '+n);selArt=null;renderSel();renderInv();$('iq').focus()}}
 function renderInv(){const ids=[...new Set([...recent,...myInv.keys()])].filter(id=>myInv.has(id)&&artMap.has(id));
   $('ilist').innerHTML=`<p class="mut">Mon inventaire : ${ids.length} article(s)</p>`+table(['Réf.','Désignation','Stock init.','Compté','Écart'],ids.slice(0,60).map(id=>{const a=artMap.get(id),q=myInv.get(id),e=r3(q-(+a.stock_initial||0));return `<tr data-act="pickI" data-id="${id}"><td class="mono">${esc(a.reference)}</td><td>${esc(a.designation)}</td><td>${+a.stock_initial||0}</td><td><b>${q}</b></td><td class="${e?'pr':''}">${e>0?'+':''}${e}</td></tr>`}))}
 function bcdel(d){if(!confirm('Retirer ce code-barres de l’article ?'))return;sb.from('codes_barres').delete().eq('code',d.c).then(async({error})=>{if(error)return toast(error.message,1);toast('Retiré');await loadAll();renderSel()})}
@@ -306,9 +308,11 @@ function handleCode(c){const id=bcIdx.get(c);
   if(scanMode==='link'){const a=linkArt;if(!a)return;if(id===a.id)return toast('Ce code est déjà sur cet article');
     if(id)return toast('Code déjà utilisé par : '+(artMap.get(id)?.designation||'un autre article'),1);
     return doOp({t:'bc',code:c,article_id:a.id}).then(ok=>{if(ok){toast('Code-barres ajouté');renderSel();renderArt()}})}
+  if(scanMode==='cmd'){if(id)pickA({id});else toast('Code-barres inconnu : cherchez l’article par son nom (ou associez-le dans Inventaire / Articles)',1);return}
   if(scanMode==='afind'){if(id){$('as').value=c;renderArt()}else toast('Code-barres inconnu. Un admin peut l’associer avec 📷 sur la ligne de l’article',1);return}
   if(id)return pickI({id});pendingCode=c;banner();toast('Code inconnu : cherchez l’article à associer');$('iq').focus()}
 document.addEventListener('input',e=>{if(e.target.id==='iqte')ecart()});$('iq').oninput=$('iq').onfocus=ddi;
+function focusQty(id){const i=panier.findIndex(p=>p.id===id);setTimeout(()=>{const q=document.querySelector(`[data-q="${i}"]`);if(q){q.focus();q.select()}},80)}
 // ══ Export des codes-barres (admin) ══
 function exportBc(){const l=articles.filter(a=>(bcOf.get(a.id)||[]).length).sort((a,b)=>String(a.reference).localeCompare(String(b.reference)));
   if(!l.length)return toast('Aucun code-barres créé',1);const mx=Math.max(...l.map(a=>bcOf.get(a.id).length)),wb=XLSX.utils.book_new();
