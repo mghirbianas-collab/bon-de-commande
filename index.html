@@ -41,6 +41,8 @@ a[data-act]{color:#dc2626;cursor:pointer}tr[data-act]{cursor:pointer}
 #scan{flex-direction:column;align-items:stretch;padding:0;background:#000;z-index:600}.vw{position:relative;flex:1;min-height:0}#sv{width:100%;height:100%;object-fit:cover}
 .ret{position:absolute;left:8%;right:8%;top:35%;height:30%;border:2px solid #2ecc71;border-radius:12px;box-shadow:0 0 0 999px #0006}.sbar{display:flex;gap:8px;justify-content:center;padding:12px}
 select{padding:7px;border:1.5px solid #e0e5ea;border-radius:8px;font:inherit;font-size:13px;background:#fff}.pi .btn,.pi select{flex:none}
+.dot{background:#ef4444;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:5px}.rdot{display:inline-block;width:9px;height:9px;background:#ef4444;border-radius:50%;margin-right:6px}
+input[type=checkbox]{width:18px;height:18px;padding:0}.vr[data-del] input{text-decoration:line-through;opacity:.4}
 </style></head><body>
 
 <div id="login"><div class="card"><h3>🛒 Bon de commande — Connexion</h3>
@@ -50,7 +52,7 @@ select{padding:7px;border:1.5px solid #e0e5ea;border-radius:8px;font:inherit;fon
 
 <div id="app" hidden>
 <div class="topnav"><b>🛒 BC</b>
-<button class="nb" data-go="cmd">➕ Commande</button><button class="nb" data-go="hist">📋 Historique</button>
+<button class="nb" data-go="cmd">➕ Commande</button><button class="nb" data-go="hist">📋 Historique<span id="hdot" class="dot" hidden>0</span></button>
 <button class="nb" data-go="art">📦 Articles</button><button class="nb" data-go="inv">📊 Inventaire</button><button class="nb adm" data-go="cli">👥 Clients</button><button class="nb adm" data-go="adm">⚙️ Admin</button>
 <span id="off"></span><span id="pend"></span><span id="who"></span><button class="nb" data-act="refresh">🔄</button><button class="nb" data-act="logout">Quitter</button></div>
 
@@ -72,6 +74,7 @@ select{padding:7px;border:1.5px solid #e0e5ea;border-radius:8px;font:inherit;fon
 <div id="isel"></div>
 <div class="card"><div class="bar"><button class="btn s sm" data-act="xinv">📥 Exporter mon inventaire</button><button class="btn s sm adm" data-act="xall">📥 Total (admin)</button></div><div id="ilist"></div></div></div>
 <div id="p_adm" class="page"><div class="card"><div class="bar"><h3>👥 Utilisateurs</h3><button class="btn g sm" data-act="uadd">➕ Nouvel utilisateur</button></div><div id="ulist"></div></div>
+<div class="card"><h3>🔐 Onglets visibles par utilisateur</h3><p class="mut">Cochez les onglets que chaque utilisateur peut voir (les administrateurs voient tout). Le changement s’applique à sa prochaine synchronisation. Il masque l’affichage ; la protection des données reste assurée par les rôles de la base.</p><div id="uperm"></div></div>
 <div class="card"><h3>💾 Sauvegarde et restauration</h3><p class="mut">Sauvegarde : télécharge un fichier avec tous les articles, clients, commandes, codes-barres et inventaires (sans les comptes ni les mots de passe). Restauration : remplace les données actuelles par celles d’un fichier de sauvegarde.</p><div class="bar"><button class="btn g sm" data-act="ubackup">💾 Sauvegarder toutes les données</button><button class="btn s sm" data-act="urestore">♻️ Restaurer une sauvegarde</button></div><input type="file" id="fb" accept=".json,application/json" hidden></div>
 <div class="card"><h3>🧹 Remise à zéro des inventaires</h3><p class="mut">Efface les comptages de tous les utilisateurs et de l’admin. Action définitive : exporte le total avant.</p><div class="bar"><button class="btn s sm" data-act="xall">📥 Exporter le total</button><button class="btn r2 sm" data-act="ureset">🗑️ Tout remettre à zéro</button></div></div></div>
 <div id="p_cli" class="page"><div class="card"><div class="bar"><h3>👥 Clients <small id="cc"></small></h3><input id="cs" placeholder="🔍 Code ou nom…" style="width:200px">
@@ -94,13 +97,13 @@ const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLo
 const match=(t,q)=>{t=norm(t);return norm(q).split(/\s+/).filter(Boolean).every(w=>t.includes(w))};
 const r3=n=>Math.round(Number(n||0)*1000)/1000, fmt=n=>r3(n).toFixed(3).replace('.',',')+' DT';
 const dt=s=>new Date(s).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'});
-let me=null,clients=[],articles=[],commandes=[],panier=[],selClient=null,okFn,codes=[],invRows=[],bcIdx=new Map(),bcOf=new Map(),myInv=new Map(),artMap=new Map(),recent=[],selArt=null,pendingCode=null,linkArt=null,metaRows=[];
+let me=null,clients=[],articles=[],commandes=[],panier=[],selClient=null,okFn,codes=[],invRows=[],bcIdx=new Map(),bcOf=new Map(),myInv=new Map(),artMap=new Map(),recent=[],selArt=null,pendingCode=null,linkArt=null,metaRows=[],curPage='',seenOpen=0,live=null,bcArt=null,prof=null;
 const isAdmin=()=>me?.role==='admin';
 const rd=async q=>{const {data,error}=await q;if(error)throw error;return data};
 
 function toast(m,e){const t=document.createElement('div');t.textContent=m;t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:8px;color:#fff;font-size:13px;z-index:999;max-width:90vw;background:'+(e?'#dc2626':'#2ecc71');document.body.append(t);setTimeout(()=>t.remove(),3800)}
 function modal(t,h,fn,ok){$('mok').textContent=ok||'Valider';$('mt').textContent=t;$('mb').innerHTML=h;okFn=fn;$('ov').hidden=false}
-const closeModal=()=>$('ov').hidden=true;
+const closeModal=()=>{$('ov').hidden=true;bcArt=null};
 const table=(h,r)=>r.length?`<div class="tw"><table><thead><tr>${h.map(x=>x==='#'?'<th class="adm"></th>':x[0]==='!'?`<th class="adm">${x.slice(1)}</th>`:`<th>${x}</th>`).join('')}</tr></thead><tbody>${r.join('')}</tbody></table></div>`:'<p class="mut">Aucun résultat</p>';
 const btns=(t,id)=>`<button class="btn s sm" data-act="edit" data-t="${t}" data-id="${id}">✏️</button> <button class="btn r sm" data-act="del" data-t="${t}" data-id="${id}">🗑️</button>`;
 
@@ -110,7 +113,7 @@ async function start(u,cached){
   if(cached)me=cached;else{const {data}=await sb.from('profiles').select('*').eq('id',u.id).maybeSingle(),c=JSON.parse(localStorage.getItem('bcme')||'null');
   me=data||(c&&c.id===u.id?c:{id:u.id,nom:u.email,role:'user'});if(data)localStorage.setItem('bcme',JSON.stringify(data))}
   $('login').hidden=true;$('app').hidden=false;document.body.classList.toggle('admin',isAdmin());
-  $('who').textContent=me.nom+(isAdmin()?' · admin':'');setQ(getQ());go('cmd');await flushQ();await flushQ2();await loadAll();
+  $('who').textContent=me.nom+(isAdmin()?' · admin':'');setQ(getQ());applyTabs();go(['cmd','hist','art','inv'].find(canSee)||'cmd');await flushQ();await flushQ2();await loadAll();subscribeLive();
 }
 (async()=>{let s=null;try{s=(await sb.auth.getSession()).data.session}catch{}
   if(s)start(s.user);else{const m=JSON.parse(localStorage.getItem('bcme')||'null');if(m&&!navigator.onLine)start(null,m)}})();
@@ -121,20 +124,20 @@ async function all(t,o){let r=[],i=0;for(;;){const d=await rd(sb.from(t).select(
 const idb=(m,k,v)=>new Promise((res,rej)=>{const o=indexedDB.open('bc',1);o.onupgradeneeded=()=>o.result.createObjectStore('kv');o.onerror=()=>rej(o.error);
   o.onsuccess=()=>{const s=o.result.transaction('kv',m).objectStore('kv'),r=m==='readonly'?s.get(k):s.put(v,k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}});
 async function loadAll(){
-  try{[clients,articles,codes,invRows,commandes,metaRows]=await Promise.all([all('clients','nom'),all('articles','designation'),all('codes_barres','code'),all('inventaire','article_id'),rd(sb.from('commandes').select('*').order('created_at',{ascending:false}).limit(500)),rd(sb.from('meta').select('*'))]);
-    $('off').textContent='';lastLoad=Date.now();idb('readwrite','cat',{clients,articles,codes,invRows,commandes,metaRows,t:Date.now()}).catch(()=>{})}
+  try{[clients,articles,codes,invRows,commandes,metaRows,prof]=await Promise.all([all('clients','nom'),all('articles','designation'),all('codes_barres','code'),all('inventaire','article_id'),rd(sb.from('commandes').select('*').order('created_at',{ascending:false}).limit(500)),rd(sb.from('meta').select('*')),rd(sb.from('profiles').select('role,nom,onglets').eq('id',me.id).maybeSingle())]);
+    $('off').textContent='';lastLoad=Date.now();if(prof){me={...me,...prof};localStorage.setItem('bcme',JSON.stringify(me));applyTabs()}if(!localStorage.getItem(seenK()))markSeen();idb('readwrite','cat',{clients,articles,codes,invRows,commandes,metaRows,t:Date.now()}).catch(()=>{})}
   catch(e){const c=await idb('readonly','cat').catch(()=>null);if(!c)return toast('Chargement impossible : '+e.message,1);
     clients=c.clients;articles=c.articles;commandes=c.commandes;codes=c.codes||[];invRows=c.invRows||[];metaRows=c.metaRows||[];$('off').textContent='📴 données du '+dt(c.t)}
   idx();render()}
-function render(){renderHist();renderArt();if(isAdmin())renderCli();cinfo();renderInv()}
-function go(p){if((p==='cli'||p==='adm')&&!isAdmin())return;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('on',x.id==='p_'+p));document.querySelectorAll('.nb[data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===p));if(p==='adm')loadUsers()}
+function render(){renderHist();renderArt();if(isAdmin())renderCli();cinfo();renderInv();badge()}
+function go(p){if(!canSee(p))return;if(curPage==='hist'&&p!=='hist'){markSeen();badge()}if(p==='hist')seenOpen=+(localStorage.getItem(seenK())||0);curPage=p;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('on',x.id==='p_'+p));document.querySelectorAll('.nb[data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===p));if(p==='adm')loadUsers();if(p==='hist')renderHist()}
 
 function renderArt(){const q=$('as').value,l=articles.filter(a=>match((a.reference||'')+' '+a.designation+' '+(bcOf.get(a.id)||[]).join(' '),q));$('ac').textContent=`(${articles.length})`;$('aimp').textContent=impTxt('articles');
-  $('art').innerHTML=table(['Réf.','Désignation','!Stock init.','Prix TTC','#'],l.slice(0,100).map(a=>`<tr><td class="mono">${esc(a.reference)}</td><td><b>${esc(a.designation)}</b>${a.variantes?` <span class="bd">${a.variantes.split(',').length} variantes</span>`:''}${(bcOf.get(a.id)||[]).length?`<br><small class="mono">${bcOf.get(a.id).map(esc).join(' · ')}</small>`:''}</td><td class="adm">${+a.stock_initial||0}</td><td class="pr">${fmt(a.prix)}</td><td class="adm nw"><button class="btn s sm" data-act="bcscan" data-id="${a.id}">📷</button> ${btns('articles',a.id)}</td></tr>`))+(l.length>100?`<p class="mut">100 premiers résultats sur ${l.length} — affinez la recherche.</p>`:'')}
-function renderCli(){const q=$('cs').value,l=clients.filter(c=>match((c.code||'')+' '+c.nom,q));$('cc').textContent=`(${clients.length})`;$('cimp').textContent=impTxt('clients');
-  $('cl').innerHTML=table(['Code','Nom','Tél.','Adresse','#'],l.slice(0,100).map(c=>`<tr><td class="mono">${esc(c.code)}</td><td><b>${esc(c.nom)}</b></td><td>${esc(c.telephone)}</td><td>${esc(c.adresse)}</td><td class="adm nw">${btns('clients',c.id)}</td></tr>`))+(l.length>100?`<p class="mut">100 premiers résultats sur ${l.length}.</p>`:'')}
+  $('art').innerHTML=table(['Réf.','Désignation','!Stock init.','Prix TTC','#'],l.slice(0,100).map(a=>`<tr><td class="mono">${esc(a.reference)}</td><td><b>${esc(a.designation)}</b>${a.variantes?` <span class="bd">${a.variantes.split(',').length} variantes</span>`:''}${(bcOf.get(a.id)||[]).length?`<br><small style="color:#16a34a">🏷️ Code-barres (${bcOf.get(a.id).length})</small>`:''}</td><td class="adm">${+a.stock_initial||0}</td><td class="pr">${fmt(a.prix)}</td><td class="adm nw"><button class="btn s sm" data-act="bcmod" data-id="${a.id}">🏷️</button> ${btns('articles',a.id)}</td></tr>`))+(l.length>100?`<p class="mut">100 premiers résultats sur ${l.length} — affinez la recherche.</p>`:'')}
+function renderCli(){const q=$('cs').value,l=clients.filter(c=>match((c.code||'')+' '+c.nom+' '+(c.matricule_fiscal||''),q));$('cc').textContent=`(${clients.length})`;$('cimp').textContent=impTxt('clients');
+  $('cl').innerHTML=table(['Code','Nom','Matricule fiscal','Régime','Tél.','Adresse','#'],l.slice(0,100).map(c=>`<tr><td class="mono">${esc(c.code)}</td><td><b>${esc(c.nom)}</b></td><td>${esc(c.matricule_fiscal)}</td><td>${esc(c.regime)}</td><td>${esc(c.telephone)}</td><td>${esc(c.adresse)}</td><td class="adm nw">${btns('clients',c.id)}</td></tr>`))+(l.length>100?`<p class="mut">100 premiers résultats sur ${l.length}.</p>`:'')}
 function renderHist(){const q=$('hs').value,l=allCmd().filter(c=>match(c.numero+' '+(c.client?.nom||'')+' '+c.commercial,q));
-  $('hist').innerHTML=table(['N°','Client','Commercial','Date','Total',''],l.slice(0,150).map(c=>`<tr><td><b>${esc(c.numero)}</b></td><td>${esc(c.client?.nom)}</td><td>${esc(c.commercial)}</td><td>${dt(c.created_at)}</td><td class="pr">${fmt(c.total)}</td><td class="nw"><button class="btn s sm" data-act="pdf" data-id="${c.id}">📄</button> <button class="btn s sm" data-act="xls" data-id="${c.id}">📊</button> <button class="btn r sm adm" data-act="del" data-t="commandes" data-id="${c.id}">🗑️</button></td></tr>`))}
+  $('hist').innerHTML=table(['N°','Client','Commercial','Date','Total',''],l.slice(0,150).map(c=>`<tr><td>${isNew(c)?'<span class="rdot"></span>':''}<b>${esc(c.numero)}</b></td><td>${esc(c.client?.nom)}</td><td>${esc(c.commercial)}</td><td>${dt(c.created_at)}</td><td class="pr">${fmt(c.total)}</td><td class="nw"><button class="btn s sm" data-act="pdf" data-id="${c.id}">📄</button> <button class="btn s sm" data-act="xls" data-id="${c.id}">📊</button> <button class="btn r sm adm" data-act="del" data-t="commandes" data-id="${c.id}">🗑️</button></td></tr>`))}
 
 // ── Nouvelle commande ──
 function dd(k){const c=k==='c',q=$(c?'cq':'aq').value,box=$(c?'ddc':'dda');
@@ -174,25 +177,33 @@ async function valider(){
   panier=[];selClient=null;$('notes').value='';cinfo();go('hist');loadAll()}
 
 // ── Administration : articles et clients ──
-function formModal(t,item){const A=t==='articles',f=A?[['reference','Référence'],['designation','Désignation *'],['prix','Prix TTC *','number'],['variantes','Variantes (séparées par des virgules)'],['stock_initial','Stock initial (fin d’année)','number']]:[['code','Code'],['nom','Nom *'],['telephone','Téléphone'],['adresse','Adresse']];
+function formModal(t,item){const A=t==='articles',f=A?[['reference','Référence'],['designation','Désignation *'],['prix','Prix TTC *','number'],['variantes','Variantes (séparées par des virgules)'],['stock_initial','Stock initial (fin d’année)','number']]:[['code','Code'],['nom','Nom *'],['matricule_fiscal','Matricule fiscal'],['regime','Régime'],['telephone','Téléphone'],['adresse','Adresse']];
   modal(item?'Modifier':'Nouveau',f.map(([k,l,ty])=>`<div class="fg"><label>${l}</label><input id="f_${k}" type="${ty||'text'}" step="0.001" value="${esc(item?.[k])}"></div>`).join(''),async()=>{
     const d={};f.forEach(([k])=>d[k]=$('f_'+k).value.trim());
     if(A){d.stock_initial=parseFloat((d.stock_initial||'0').replace(',','.'))||0;d.prix=parseFloat(d.prix.replace(',','.'));if(!d.designation||!(d.prix>=0))return toast('Désignation et prix obligatoires',1)}else if(!d.nom)return toast('Le nom est obligatoire',1);
     if(!await doOp({t:'tbl',tb:t,k:item?'upd':'ins',id:item?item.id:crypto.randomUUID(),d}))return;closeModal();toast('Enregistré')})}
 async function del(t,id){if(!confirm('Supprimer ?'))return;if(t!=='commandes'){if(await doOp({t:'tbl',tb:t,k:'del',id}))toast('Supprimé');return}const {error}=await sb.from(t).delete().eq('id',id);if(error)return toast(error.message,1);toast('Supprimé');loadAll()}
 async function delAll(t){if(prompt('Tapez SUPPRIMER pour effacer tout le contenu de « '+t+' »')!=='SUPPRIMER')return;const {error}=await sb.from(t).delete().not('id','is',null);if(error)return toast(error.message,1);toast('Tout est supprimé');loadAll()}
+const pk=(r,ks)=>String(ks.map(k=>r[k]).find(v=>v)||'');
+const bcFrom=r=>[...new Set(Object.entries(r).filter(([k])=>/^(code[\s_-]*barres?|codebarres?|barcodes?|ean|gtin|gencod)/.test(k)).flatMap(([,v])=>String(v).split(/[;,|\s]+/)).map(s=>s.trim()).filter(Boolean))];
 const stk=r=>{const v=['stock_initial','stock initial','stock','qte','quantite'].map(k=>r[k]).find(v=>v!==undefined);return v===undefined?{}:{stock_initial:parseFloat(String(v).replace(/\s/g,'').replace(',','.'))||0}};
 const CFG={articles:{key:r=>norm(r.reference)||norm(r.designation),map:r=>({reference:r.reference||r.ref||r.code||'',designation:r.designation||r.libelle||r.article||'',prix:parseFloat(String(r.prix||r.price||'0').replace(/\s/g,'').replace(',','.'))||0,variantes:r.variantes||r.parfum||'',...stk(r)}),ok:x=>x.designation&&x.prix>0},
-  clients:{key:r=>norm(r.code)||norm(r.nom),map:r=>({code:r.code||'',nom:r.nom||r.client||'',telephone:r.telephone||r.tel||'',adresse:r.adresse||''}),ok:x=>x.nom}};
+  clients:{key:r=>norm(r.code)||norm(r.nom),map:r=>({code:r.code||'',nom:r.nom||r.client||'',matricule_fiscal:pk(r,['matricule_fiscal','matricule fiscal','matricule-fiscal','matriculefiscal','mf','matricule']),regime:pk(r,['regime']),telephone:r.telephone||r.tel||'',adresse:r.adresse||''}),ok:x=>x.nom}};
 const same=(e,x)=>Object.keys(x).every(f=>f==='prix'||f==='stock_initial'?Number(e[f])===x[f]:(e[f]||'')===x[f]);
 async function importFile(t,file){const C=CFG[t],wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
   const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}).map(r=>Object.fromEntries(Object.entries(r).map(([k,v])=>[norm(k).trim(),String(v).trim()])));
   const ex=new Map((t==='articles'?articles:clients).map(x=>[C.key(x),x])),ins=[],upd=[],seen=new Set();
-  for(const r of rows){const x=C.map(r);if(!C.ok(x))continue;const k=C.key(x);if(seen.has(k))continue;seen.add(k);const e=ex.get(k);if(!e)ins.push(x);else if(!same(e,x))upd.push({...x,id:e.id})}
-  for(let i=0;i<ins.length;i+=500)await rd(sb.from(t).insert(ins.slice(i,i+500)));
+  const want=[];
+  for(const r of rows){const x=C.map(r),k=C.key(x),cd=t==='articles'?bcFrom(r):[];
+    if(!C.ok(x)){if(cd.length&&x.reference&&ex.has(k)&&!seen.has('b'+k)){seen.add('b'+k);want.push([k,cd])}continue}
+    if(seen.has(k))continue;seen.add(k);if(cd.length)want.push([k,cd]);const e=ex.get(k);if(!e)ins.push(x);else if(!same(e,x))upd.push({...x,id:e.id})}
+  for(let i=0;i<ins.length;i+=500)(await rd(sb.from(t).insert(ins.slice(i,i+500)).select())).forEach(g=>ex.set(C.key(g),g));
   for(let i=0;i<upd.length;i+=500)await rd(sb.from(t).upsert(upd.slice(i,i+500)));
+  let nb=0,cf=0;if(want.length){const used=new Set(),add=[];
+    for(const [k,cd] of want){const a=ex.get(k);if(!a)continue;for(const c of cd){const o=bcIdx.get(c);if(o){if(o!==a.id)cf++;continue}if(used.has(c)){cf++;continue}used.add(c);add.push({code:c,article_id:a.id})}}
+    for(let i=0;i<add.length;i+=500)await rd(sb.from('codes_barres').insert(add.slice(i,i+500)));nb=add.length}
   await rd(sb.from('meta').upsert({key:'import_'+t,value:{at:new Date().toISOString(),ajoutes:ins.length,maj:upd.length,fichier:file.name}}));
-  toast(`${ins.length} ajouté(s), ${upd.length} mis à jour`);loadAll()}
+  toast(`${ins.length} ajouté(s), ${upd.length} mis à jour`+(nb?`, ${nb} code(s)-barres liés`:'')+(cf?` — ${cf} code(s) ignoré(s) (déjà utilisés)`:''));loadAll()}
 const impTxt=k=>{const v=metaRows.find(r=>r.key==='import_'+k)?.value;return v?`Dernière importation : ${dt(v.at)} — ${v.ajoutes} ajouté(s), ${v.maj} mis à jour${v.fichier?' ('+v.fichier+')':''}`:'Dernière importation : pas encore enregistrée'}
 
 // ── Exports ──
@@ -218,7 +229,7 @@ function pdf(c){const {jsPDF}=window.jspdf,d=new jsPDF(),W=210,M=12,X=[M,50,122,
   d.save('BC-'+c.numero+'.pdf')}
 
 // ── Événements (aucun onclick inline : plus de bug avec les apostrophes) ──
-const A={ubackup,urestore:()=>$('fb').click(),cscan:()=>openScan('cmd'),ascan:()=>openScan('afind'),bcscan:d=>{linkArt=artMap.get(d.id);openScan('link')},xbc:exportBc,uadd,uname,upass,udel,ureset,scan:()=>openScan('find'),scanlink:()=>{linkArt=selArt;openScan('link')},scanx:closeScan,torch,cam:camNext,calc,isave,pickI,pcx:()=>{pendingCode=null;banner()},bcdel,xinv:()=>exportInv(false),xall:()=>exportInv(true),logout:async()=>{if((getQ().length||getQ2().length)&&!confirm('Des commandes ne sont pas encore envoyées. Quitter quand même ?'))return;localStorage.removeItem('bcme');await idb('readwrite','cat',null).catch(()=>{});try{await sb.auth.signOut()}catch{}location.reload()},refresh:async()=>{await flushQ();await flushQ2();await loadAll();toast('Actualisé')},close:closeModal,
+const A={bcmod:d=>bcmod(d.id),bcx:d=>{if(d.id&&d.id!=='null')document.querySelector(`[data-bcid="${d.id}"]`)?.closest('.vr').toggleAttribute('data-del')},bcscan2:()=>{linkArt=bcArt;openScan('link')},isel_x:()=>{selArt=null;renderSel()},ireset,ubackup,urestore:()=>$('fb').click(),cscan:()=>openScan('cmd'),ascan:()=>openScan('afind'),bcscan:d=>{linkArt=artMap.get(d.id);openScan('link')},xbc:exportBc,uadd,uname,upass,udel,ureset,scan:()=>openScan('find'),scanlink:()=>{linkArt=selArt;openScan('link')},scanx:closeScan,torch,cam:camNext,calc,isave,pickI,pcx:()=>{pendingCode=null;banner()},bcdel,xinv:()=>exportInv(false),xall:()=>exportInv(true),logout:async()=>{if((getQ().length||getQ2().length)&&!confirm('Des commandes ne sont pas encore envoyées. Quitter quand même ?'))return;localStorage.removeItem('bcme');await idb('readwrite','cat',null).catch(()=>{});try{await sb.auth.signOut()}catch{}location.reload()},refresh:async()=>{await flushQ();await flushQ2();await loadAll();toast('Actualisé')},close:closeModal,
   pickC:d=>{selClient=clients.find(c=>c.id===d.id);$('cq').value='';$('ddc').hidden=true;cinfo()},clr:()=>{selClient=null;cinfo()},pickA,
   inc:d=>{panier[d.i].qte++;cart()},dec:d=>{if(--panier[d.i].qte<1)panier.splice(d.i,1);cart()},rm:d=>{panier.splice(d.i,1);cart()},valider,
   edit:d=>formModal(d.t,(d.t==='articles'?articles:clients).find(x=>x.id===d.id)),add:d=>formModal(d.t),del:d=>del(d.t,d.id),delAll:d=>delAll(d.t),
@@ -227,6 +238,9 @@ document.addEventListener('click',e=>{if(!e.target.closest('.dd-wrap'))document.
   const kk=e.target.closest('[data-k]');if(kk)return ckey(kk.dataset.k);const t=e.target.closest('[data-go],[data-act]');if(!t)return;if(t.dataset.go)return go(t.dataset.go);A[t.dataset.act]?.(t.dataset)});
 document.addEventListener('change',async e=>{const t=e.target;
   if(t.dataset.role){try{await adm({action:'role',id:t.dataset.role,role:t.value});toast('Rôle modifié')}catch(x){toast(x.message,1)}loadUsers()}
+  if(t.dataset.perm){const u=users.find(x=>x.id===t.dataset.perm),cur=new Set(u.onglets||TABS.map(x=>x[0]));t.checked?cur.add(t.dataset.tab):cur.delete(t.dataset.tab);
+    if(!cur.size){t.checked=true;return toast('Au moins un onglet doit rester visible',1)}
+    const arr=TABS.map(x=>x[0]).filter(k=>cur.has(k));try{await rd(sb.from('profiles').update({onglets:arr}).eq('id',u.id));u.onglets=arr;toast('Accès mis à jour')}catch(x){toast(x.message,1);t.checked=!t.checked}}
   if(t.dataset.q!==undefined){panier[t.dataset.q].qte=Math.max(1,parseInt(t.value)||1);cart()}
   if(t.id==='fb'&&t.files[0]){await onBackupFile(t.files[0]);t.value=''}
   if(t.id==='fi'&&t.files[0]){try{await importFile(t.dataset.t,t.files[0])}catch(x){toast('Import : '+x.message,1)}t.value=''}});
@@ -238,13 +252,13 @@ $('cq').oninput=$('cq').onfocus=()=>dd('c');$('aq').oninput=$('aq').onfocus=()=>
 const getQ2=()=>JSON.parse(localStorage.getItem('bcq2')||'[]'),setQ2=q=>{localStorage.setItem('bcq2',JSON.stringify(q));setQ(getQ())};
 const isNet=e=>!e.code||/^PGRST30|jwt/i.test(e.code+e.message);
 function addBc(c,id){bcIdx.set(c,id);const l=bcOf.get(id)||[];if(!l.includes(c))l.push(c);bcOf.set(id,l)}
-function applyOp(o){if(o.t==='inv'){if(o.qte>0){myInv.set(o.article_id,o.qte);recent=[o.article_id,...recent.filter(x=>x!==o.article_id)]}else myInv.delete(o.article_id)}else if(o.t==='tbl'){const L=o.tb==='articles'?articles:clients,i=L.findIndex(x=>x.id===o.id);if(o.k==='del'){if(i>=0)L.splice(i,1)}else if(i>=0)Object.assign(L[i],o.d);else L.push({id:o.id,...o.d})}else addBc(o.code,o.article_id)}
+function applyOp(o,row){if(o.t==='inv'){if(o.qte>0){myInv.set(o.article_id,o.qte);recent=[o.article_id,...recent.filter(x=>x!==o.article_id)]}else myInv.delete(o.article_id)}else if(o.t==='tbl'){const L=o.tb==='articles'?articles:clients,i=L.findIndex(x=>x.id===o.id);if(o.k==='del'){if(i>=0)L.splice(i,1)}else if(i>=0)Object.assign(L[i],o.d);else L.push({id:o.id,...o.d})}else{addBc(o.code,o.article_id);if(!codes.some(c=>c.code===o.code))codes.push(row||{id:null,code:o.code,article_id:o.article_id})}}
 function idx(){artMap=new Map(articles.map(a=>[a.id,a]));bcIdx=new Map();bcOf=new Map();codes.forEach(c=>addBc(c.code,c.article_id));
-  myInv=new Map(invRows.filter(r=>r.user_id===me.id&&Number(r.qte)>0).map(r=>[r.article_id,Number(r.qte)]));getQ2().forEach(applyOp);artMap=new Map(articles.map(a=>[a.id,a]))}
-const sendOp=o=>o.t==='tbl'?(o.k==='ins'?sb.from(o.tb).insert({...o.d,id:o.id}):o.k==='upd'?sb.from(o.tb).update(o.d).eq('id',o.id):sb.from(o.tb).delete().eq('id',o.id)):o.t==='inv'&&o.qte===0?sb.from('inventaire').delete().eq('user_id',me.id).eq('article_id',o.article_id):o.t==='inv'?sb.from('inventaire').upsert({user_id:me.id,article_id:o.article_id,qte:o.qte,updated_at:new Date().toISOString()},{onConflict:'user_id,article_id'}):sb.from('codes_barres').insert({code:o.code,article_id:o.article_id});
-async function doOp(o){const {error}=await sendOp(o);
+  myInv=new Map(invRows.filter(r=>r.user_id===me.id&&Number(r.qte)>0).map(r=>[r.article_id,Number(r.qte)]));getQ2().forEach(o=>applyOp(o));artMap=new Map(articles.map(a=>[a.id,a]))}
+const sendOp=o=>o.t==='tbl'?(o.k==='ins'?sb.from(o.tb).insert({...o.d,id:o.id}):o.k==='upd'?sb.from(o.tb).update(o.d).eq('id',o.id):sb.from(o.tb).delete().eq('id',o.id)):o.t==='inv'&&o.qte===0?sb.from('inventaire').delete().eq('user_id',me.id).eq('article_id',o.article_id):o.t==='inv'?sb.from('inventaire').upsert({user_id:me.id,article_id:o.article_id,qte:o.qte,updated_at:new Date().toISOString()},{onConflict:'user_id,article_id'}):sb.from('codes_barres').insert({code:o.code,article_id:o.article_id}).select();
+async function doOp(o){const {data,error}=await sendOp(o);
   if(error&&!isNet(error)){toast(error.code==='23505'?'Ce code-barres est déjà utilisé par un autre article':error.message,1);return false}
-  if(error)setQ2([...getQ2(),o]);applyOp(o);if(o.t==='tbl'){idx();render()}return true}
+  if(error)setQ2([...getQ2(),o]);applyOp(o,Array.isArray(data)?data[0]:null);if(o.t==='tbl'){idx();render()}return true}
 async function flushQ2(){const q=getQ2(),keep=[];if(!q.length||!me)return;try{await sb.auth.getSession()}catch{}
   for(const o of q){const {error}=await sendOp(o);if(error&&isNet(error))keep.push(o);else if(error&&error.code!=='23505')toast(error.message,1)}
   setQ2(keep);if(keep.length<q.length)loadAll()}
@@ -258,8 +272,8 @@ function pickI(d){const a=artMap.get(d.id);if(!a)return;$('ddi').hidden=true;
 function selA(a){selArt=a;$('iq').value='';$('ddi').hidden=true;go('inv');renderSel();setTimeout(()=>{const q=$('iqte');q.focus();q.select()},60)}
 function renderSel(){const a=selArt,el=$('isel');if(!a){el.innerHTML='';return}
   const cur=myInv.get(a.id),bc=bcOf.get(a.id)||[];
-  el.innerHTML=`<div class="card"><b>${esc(a.designation)}</b><br><small class="mut">${esc(a.reference)}</small>
-  <div class="stk">Stock initial : <b>${+a.stock_initial||0}</b>${cur!==undefined?` · déjà compté : <b>${cur}</b>`:''}</div>
+  el.innerHTML=`<div class="card"><button class="btn r2 sm" data-act="isel_x" style="float:right" title="Fermer">✕</button><b>${esc(a.designation)}</b><br><small class="mut">${esc(a.reference)}</small>
+  <div class="stk">Stock initial : <b>${+a.stock_initial||0}</b>${cur!==undefined?` · déjà compté : <b>${cur}</b> <button class="btn r sm" data-act="ireset">Reset</button>`:''}</div>
   <div class="pi"><input id="iqte" type="text" inputmode="decimal" placeholder="${cur!==undefined?'Quantité à ajouter':'Quantité'}" style="width:110px;flex:none;font-size:20px;text-align:left"><button class="btn s" data-act="calc">🧮</button><button class="btn g" data-act="isave">✓ OK</button></div>
   <div id="iec" class="mut"></div>
   <div>${bc.map(c=>`<span class="bd">${esc(c)}${isAdmin()?` <a data-act="bcdel" data-c="${esc(c)}">✕</a>`:''}</span> `).join('')||'<small class="mut">Aucun code-barres</small>'} <button class="btn s sm" data-act="scanlink">＋ code-barres</button></div></div>`;ecart()}
@@ -315,11 +329,41 @@ async function loop(){const my=++lid,v=$('sv');scanOn=true;let bd=null;
 function handleCode(c){const id=bcIdx.get(c);
   if(scanMode==='link'){const a=linkArt;if(!a)return;if(id===a.id)return toast('Ce code est déjà sur cet article');
     if(id)return toast('Code déjà utilisé par : '+(artMap.get(id)?.designation||'un autre article'),1);
-    return doOp({t:'bc',code:c,article_id:a.id}).then(ok=>{if(ok){toast('Code-barres ajouté');renderSel();renderArt()}})}
+    return doOp({t:'bc',code:c,article_id:a.id}).then(ok=>{if(ok){toast('Code-barres ajouté');renderSel();renderArt();if(bcArt&&!$('ov').hidden)$('mb').innerHTML=bcHtml()}})}
   if(scanMode==='cmd'){if(id)pickA({id});else toast('Code-barres inconnu : cherchez l’article par son nom (ou associez-le dans Inventaire / Articles)',1);return}
   if(scanMode==='afind'){if(id){$('as').value=c;renderArt()}else toast('Code-barres inconnu. Un admin peut l’associer avec 📷 sur la ligne de l’article',1);return}
   if(id)return pickI({id});pendingCode=c;banner();toast('Code inconnu : cherchez l’article à associer');$('iq').focus()}
 document.addEventListener('input',e=>{if(e.target.id==='iqte')ecart()});$('iq').oninput=$('iq').onfocus=ddi;
+// ══ Onglets autorisés, notifications de commandes, codes-barres manuels, reset ══
+const TABS=[['cmd','Commande'],['hist','Historique'],['art','Articles'],['inv','Inventaire']];
+function canSee(p){return isAdmin()||(p!=='cli'&&p!=='adm'&&(!me.onglets||me.onglets.includes(p)))}
+function applyTabs(){document.body.classList.toggle('admin',isAdmin());document.querySelectorAll('.nb[data-go]').forEach(b=>b.hidden=!canSee(b.dataset.go));
+  if(curPage&&!canSee(curPage))go(['cmd','hist','art','inv'].find(canSee)||'cmd')}
+function renderPerm(){const l=users.filter(u=>u.role!=='admin');
+  $('uperm').innerHTML=l.length?table(['Utilisateur',...TABS.map(x=>x[1])],l.map(u=>`<tr><td><b>${esc(u.nom)}</b></td>${TABS.map(([k])=>`<td><input type="checkbox" data-perm="${u.id}" data-tab="${k}" ${!u.onglets||u.onglets.includes(k)?'checked':''}></td>`).join('')}</tr>`)):'<p class="mut">Aucun utilisateur standard.</p>'}
+function seenK(){return 'bcseen_'+me.id}
+function markSeen(){localStorage.setItem(seenK(),String(Math.max(0,...commandes.map(c=>new Date(c.created_at).getTime()))||Date.now()))}
+function unread(){const s=+localStorage.getItem(seenK());return s?commandes.filter(c=>c.user_id!==me.id&&new Date(c.created_at).getTime()>s):[]}
+function badge(){if(!me)return;const n=unread().length,b=$('hdot');b.hidden=!n;b.textContent=n>99?'99+':n}
+const isNew=c=>curPage==='hist'&&c.user_id!==me.id&&new Date(c.created_at).getTime()>seenOpen;
+function subscribeLive(){if(live||!me)return;live=sb.channel('cmd-live').on('postgres_changes',{event:'*',schema:'public',table:'commandes'},pl=>{
+  if(pl.eventType==='INSERT'){const c=pl.new;if(commandes.some(x=>x.id===c.id))return;commandes.unshift(c);if(c.user_id!==me.id){toast('🔔 Nouvelle commande '+c.numero+' — '+(c.commercial||''));navigator.vibrate?.(120)}}
+  else if(pl.eventType==='DELETE')commandes=commandes.filter(x=>x.id!==pl.old.id);
+  renderHist();badge()}).subscribe()}
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&curPage==='hist'&&me)markSeen()});
+async function ireset(){if(!selArt||!confirm('Remettre « '+selArt.designation+' » à zéro dans votre inventaire ?'))return;
+  if(await doOp({t:'inv',article_id:selArt.id,qte:0})){toast('Article remis à zéro');renderSel();renderInv()}}
+function bcHtml(){const l=codes.filter(c=>c.article_id===bcArt.id);
+  return (l.map(c=>`<div class="vr"><input style="flex:1" ${c.id?`data-bcid="${c.id}"`:'disabled'} value="${esc(c.code)}"><button class="btn r sm" data-act="bcx" data-id="${c.id}">✕</button></div>`).join('')||'<p class="mut">Aucun code-barres pour cet article.</p>')
+  +`<p class="mut">Modifiez un code directement, ou barrez-le avec ✕ pour le supprimer (appliqué à l’enregistrement). Ajouter :</p><div class="vr"><input id="bc_new" style="flex:1" placeholder="Nouveau code-barres"><button class="btn g sm" data-act="bcscan2">📷</button></div>`}
+function bcmod(id){const a=artMap.get(id);if(!a)return;
+  modal('Codes-barres : '+a.designation.slice(0,40),(bcArt=a,bcHtml()),async()=>{
+    try{if(!navigator.onLine)throw new Error('Connexion Internet requise pour cette action');
+      for(const r of document.querySelectorAll('#mb [data-bcid]')){const cid=r.dataset.bcid,c=codes.find(x=>x.id===cid),v=r.value.trim();
+        if(r.closest('.vr').hasAttribute('data-del')||!v)await rd(sb.from('codes_barres').delete().eq('id',cid));
+        else if(c&&v!==c.code){const o=bcIdx.get(v);if(o&&o!==a.id)throw new Error('Le code '+v+' est déjà utilisé par un autre article');await rd(sb.from('codes_barres').update({code:v}).eq('id',cid))}}
+      const n=$('bc_new').value.trim();if(n){if(bcIdx.get(n))throw new Error('Le code '+n+' existe déjà');await rd(sb.from('codes_barres').insert({code:n,article_id:a.id}))}
+      closeModal();toast('Codes-barres enregistrés');await loadAll()}catch(e){toast(e.message,1)}},'Enregistrer')}
 // ══ Sauvegarde / restauration (atomique côté serveur) ══
 async function getBackup(){if(!navigator.onLine)throw new Error('Connexion Internet requise pour cette action');const {data,error}=await sb.rpc('export_backup');if(error)throw new Error(error.message);return data}
 function dl(name,obj){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(obj)],{type:'application/json'}));a.download=name;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
@@ -341,7 +385,7 @@ let users=[];
 async function adm(b){if(!navigator.onLine)throw new Error('Connexion Internet requise pour cette action');const {data,error}=await sb.functions.invoke('admin-users',{body:b});
   if(error){let m=error.message;try{m=(await error.context.json()).error||m}catch{}throw new Error(m)}
   if(data?.error)throw new Error(data.error);return data}
-async function loadUsers(){try{users=(await adm({action:'list'})).users;renderUsers()}catch(e){toast(e.message,1)}}
+async function loadUsers(){try{users=(await adm({action:'list'})).users;const ps=await rd(sb.from('profiles').select('id,onglets'));users.forEach(u=>u.onglets=ps.find(q=>q.id===u.id)?.onglets||null);renderUsers();renderPerm()}catch(e){toast(e.message,1)}}
 function renderUsers(){$('ulist').innerHTML=table(['Nom','Email','Rôle','Dernière connexion',''],users.map(u=>`<tr><td><b>${esc(u.nom)}</b></td><td>${esc(u.email)}</td><td>${u.id===me.id?'Administrateur (vous)':`<select data-role="${u.id}"><option value="user"${u.role==='user'?' selected':''}>Utilisateur</option><option value="admin"${u.role==='admin'?' selected':''}>Administrateur</option></select>`}</td><td>${u.last?dt(u.last):'—'}</td><td class="nw"><button class="btn s sm" data-act="uname" data-id="${u.id}">✏️</button> <button class="btn s sm" data-act="upass" data-id="${u.id}">🔑</button>${u.id===me.id?'':` <button class="btn r sm" data-act="udel" data-id="${u.id}">🗑️</button>`}</td></tr>`))}
 const act=(fn,ok)=>async()=>{try{await fn();closeModal();toast(ok);loadUsers()}catch(e){toast(e.message,1)}};
 function uadd(){modal('Nouvel utilisateur',`<div class="fg"><label>Email *</label><input id="u_e" type="email" autocomplete="off"></div><div class="fg"><label>Nom (affiché sur les bons) *</label><input id="u_n"></div><div class="fg"><label>Mot de passe * (6 caractères min.)</label><input id="u_p" autocomplete="off"></div><div class="fg"><label>Rôle</label><select id="u_r" style="width:100%"><option value="user">Utilisateur</option><option value="admin">Administrateur</option></select></div>`,act(()=>adm({action:'create',email:$('u_e').value.trim(),nom:$('u_n').value.trim(),password:$('u_p').value,role:$('u_r').value}),'Utilisateur créé'),'Créer')}
