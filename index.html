@@ -43,6 +43,8 @@ a[data-act]{color:#dc2626;cursor:pointer}tr[data-act]{cursor:pointer}
 select{padding:7px;border:1.5px solid #e0e5ea;border-radius:8px;font:inherit;font-size:13px;background:#fff}.pi .btn,.pi select{flex:none}
 .dot{background:#ef4444;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:5px}.rdot{display:inline-block;width:9px;height:9px;background:#ef4444;border-radius:50%;margin-right:6px}
 input[type=checkbox]{width:18px;height:18px;padding:0}.vr[data-del] input{text-decoration:line-through;opacity:.4}
+.kg{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px}.k{background:#f8f9fa;border-radius:10px;padding:10px}.k b{display:block;font-size:19px}.k small{color:#789;font-size:11px}
+.bar0{background:#e5e7eb;border-radius:6px;height:9px;overflow:hidden}.bar0 i{display:block;height:9px;background:#2ecc71}
 </style></head><body>
 
 <div id="login"><div class="card"><h3>🛒 Bon de commande — Connexion</h3>
@@ -53,15 +55,16 @@ input[type=checkbox]{width:18px;height:18px;padding:0}.vr[data-del] input{text-d
 <div id="app" hidden>
 <div class="topnav"><b>🛒 BC</b>
 <button class="nb" data-go="cmd">➕ Commande</button><button class="nb" data-go="hist">📋 Historique<span id="hdot" class="dot" hidden>0</span></button>
-<button class="nb" data-go="art">📦 Articles</button><button class="nb" data-go="inv">📊 Inventaire</button><button class="nb adm" data-go="cli">👥 Clients</button><button class="nb adm" data-go="adm">⚙️ Admin</button>
+<button class="nb" data-go="art">📦 Articles</button><button class="nb" data-go="inv">📊 Inventaire</button><button class="nb" data-go="cli">👥 Clients</button><button class="nb adm" data-go="adm">⚙️ Admin</button><button class="nb adm" data-go="stat">📈 Statistiques</button>
 <span id="off"></span><span id="pend"></span><span id="who"></span><button class="nb" data-act="refresh">🔄</button><button class="nb" data-act="logout">Quitter</button></div>
 
 <div id="p_cmd" class="page">
-<div class="card" style="position:relative;z-index:20"><h3>👤 Client</h3><div class="dd-wrap"><input id="cq" placeholder="🔍 Code ou nom du client…" autocomplete="off"><div id="ddc" class="dd" hidden></div></div><div id="cinfo" style="margin-top:8px"></div></div>
+<div id="dlist"></div>
+<div class="card" style="position:relative;z-index:20"><h3>👤 Client</h3><div class="dd-wrap"><input id="cq" placeholder="🔍 Nom, matricule fiscal ou téléphone…" autocomplete="off"><div id="ddc" class="dd" hidden></div></div><div id="cinfo" style="margin-top:8px"></div></div>
 <div class="card" style="position:relative;z-index:10"><div class="bar" style="margin-bottom:8px"><h3>📦 Articles</h3><b id="total2" class="pr" style="font-size:17px">0,000 DT</b></div><div class="bar" style="margin:0"><div class="dd-wrap" style="flex:1"><input id="aq" placeholder="🔍 Référence, désignation ou code-barres…" autocomplete="off"><div id="dda" class="dd" hidden></div></div><button class="btn g" data-act="cscan">📷</button></div><div id="cart" style="margin-top:10px"></div></div>
 <div class="card"><h3>📝 Notes</h3><textarea id="notes" rows="2" placeholder="Délais, conditions…"></textarea></div>
 <div class="tot"><span>TOTAL TTC</span><span id="total">0,000 DT</span></div>
-<button id="vbtn" class="btn g" style="width:100%;margin-top:10px;padding:13px" data-act="valider" disabled>✅ Valider la commande</button></div>
+<div style="display:flex;gap:8px;margin-top:10px"><button id="dbtn" class="btn s" style="flex:1;padding:13px" data-act="dsave" disabled>💾 Brouillon</button><button id="vbtn" class="btn g" style="flex:2;padding:13px" data-act="valider" disabled>✅ Valider la commande</button></div></div>
 
 <div id="p_hist" class="page"><div class="card"><div class="bar"><h3>📋 Historique</h3><input id="hs" placeholder="🔍 N°, client, commercial…" style="width:200px"><button class="btn r2 sm adm" data-act="delAll" data-t="commandes">🗑️ Tout supprimer</button></div><div id="hist"></div></div></div>
 
@@ -73,13 +76,14 @@ input[type=checkbox]{width:18px;height:18px;padding:0}.vr[data-del] input{text-d
 <div class="card" style="position:relative;z-index:20"><h3>🔎 Article à compter</h3><div class="bar" style="margin:0"><div class="dd-wrap" style="flex:1"><input id="iq" placeholder="🔍 Nom, référence ou code-barres…" autocomplete="off"><div id="ddi" class="dd" hidden></div></div><button class="btn g" data-act="scan">📷</button></div></div>
 <div id="isel"></div>
 <div class="card"><div class="bar"><button class="btn s sm" data-act="xinv">📥 Exporter mon inventaire</button><button class="btn s sm adm" data-act="xall">📥 Total (admin)</button></div><div id="ilist"></div></div></div>
+<div id="p_stat" class="page"><div id="st_a"></div><div class="card"><h3>🔎 Voir un article compté</h3><input id="sq" placeholder="Nom, référence ou code-barres d’un article compté…" autocomplete="off"><div id="sres"></div></div><div id="st_b"></div></div>
 <div id="p_adm" class="page"><div class="card"><div class="bar"><h3>👥 Utilisateurs</h3><button class="btn g sm" data-act="uadd">➕ Nouvel utilisateur</button></div><div id="ulist"></div></div>
 <div class="card"><h3>🔐 Onglets visibles par utilisateur</h3><p class="mut">Cochez les onglets que chaque utilisateur peut voir (les administrateurs voient tout). Le changement s’applique à sa prochaine synchronisation. Il masque l’affichage ; la protection des données reste assurée par les rôles de la base.</p><div id="uperm"></div></div>
 <div class="card"><h3>💾 Sauvegarde et restauration</h3><p class="mut">Sauvegarde : télécharge un fichier avec tous les articles, clients, commandes, codes-barres et inventaires (sans les comptes ni les mots de passe). Restauration : remplace les données actuelles par celles d’un fichier de sauvegarde.</p><div class="bar"><button class="btn g sm" data-act="ubackup">💾 Sauvegarder toutes les données</button><button class="btn s sm" data-act="urestore">♻️ Restaurer une sauvegarde</button></div><input type="file" id="fb" accept=".json,application/json" hidden></div>
 <div class="card"><h3>🧹 Remise à zéro des inventaires</h3><p class="mut">Efface les comptages de tous les utilisateurs et de l’admin. Action définitive : exporte le total avant.</p><div class="bar"><button class="btn s sm" data-act="xall">📥 Exporter le total</button><button class="btn r2 sm" data-act="ureset">🗑️ Tout remettre à zéro</button></div></div></div>
-<div id="p_cli" class="page"><div class="card"><div class="bar"><h3>👥 Clients <small id="cc"></small></h3><input id="cs" placeholder="🔍 Code ou nom…" style="width:200px">
-<button class="btn s sm" data-act="imp" data-t="clients">📥 Importer</button><button class="btn g sm" data-act="add" data-t="clients">➕ Nouveau</button></div><div id="cimp" class="mut"></div><div id="cl"></div>
-<div style="margin-top:12px"><button class="btn r2 sm" data-act="delAll" data-t="clients">🗑️ Supprimer tous les clients</button></div></div></div>
+<div id="p_cli" class="page"><div class="card"><div class="bar"><h3>👥 Clients <small id="cc"></small></h3><input id="cs" placeholder="🔍 Nom, matricule, téléphone…" style="width:210px">
+<button class="btn s sm adm" data-act="imp" data-t="clients">📥 Importer</button><button class="btn g sm adm" data-act="add" data-t="clients">➕ Nouveau</button></div><div id="cimp" class="mut"></div><div id="cl"></div>
+<div class="adm" style="margin-top:12px"><button class="btn r2 sm" data-act="delAll" data-t="clients">🗑️ Supprimer tous les clients</button></div></div></div>
 <input type="file" id="fi" accept=".xlsx,.xls,.csv" hidden>
 </div>
 
@@ -94,10 +98,11 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+const cKey=c=>[c.code,c.nom,c.matricule_fiscal,String(c.matricule_fiscal||'').replace(/[^0-9a-z]/gi,''),c.telephone,String(c.telephone||'').replace(/\D/g,'')].filter(Boolean).join(' ');
 const match=(t,q)=>{t=norm(t);return norm(q).split(/\s+/).filter(Boolean).every(w=>t.includes(w))};
 const r3=n=>Math.round(Number(n||0)*1000)/1000, fmt=n=>r3(n).toFixed(3).replace('.',',')+' DT';
 const dt=s=>new Date(s).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'});
-let me=null,clients=[],articles=[],commandes=[],panier=[],selClient=null,okFn,codes=[],invRows=[],bcIdx=new Map(),bcOf=new Map(),myInv=new Map(),artMap=new Map(),recent=[],selArt=null,pendingCode=null,linkArt=null,metaRows=[],curPage='',seenOpen=0,live=null,bcArt=null,prof=null;
+let me=null,clients=[],articles=[],commandes=[],panier=[],selClient=null,okFn,codes=[],invRows=[],bcIdx=new Map(),bcOf=new Map(),myInv=new Map(),artMap=new Map(),recent=[],selArt=null,pendingCode=null,linkArt=null,metaRows=[],curPage='',seenOpen=0,live=null,bcArt=null,prof=null,curDraft=null,ST=null;
 const isAdmin=()=>me?.role==='admin';
 const rd=async q=>{const {data,error}=await q;if(error)throw error;return data};
 
@@ -129,23 +134,23 @@ async function loadAll(){
   catch(e){const c=await idb('readonly','cat').catch(()=>null);if(!c)return toast('Chargement impossible : '+e.message,1);
     clients=c.clients;articles=c.articles;commandes=c.commandes;codes=c.codes||[];invRows=c.invRows||[];metaRows=c.metaRows||[];$('off').textContent='📴 données du '+dt(c.t)}
   idx();render()}
-function render(){renderHist();renderArt();if(isAdmin())renderCli();cinfo();renderInv();badge()}
-function go(p){if(!canSee(p))return;if(curPage==='hist'&&p!=='hist'){markSeen();badge()}if(p==='hist')seenOpen=+(localStorage.getItem(seenK())||0);curPage=p;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('on',x.id==='p_'+p));document.querySelectorAll('.nb[data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===p));if(p==='adm')loadUsers();if(p==='hist')renderHist()}
+function render(){renderHist();renderArt();renderCli();cinfo();renderInv();badge();renderDrafts()}
+function go(p){if(!canSee(p))return;if(curPage==='hist'&&p!=='hist'){markSeen();badge()}if(p==='hist')seenOpen=+(localStorage.getItem(seenK())||0);curPage=p;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('on',x.id==='p_'+p));document.querySelectorAll('.nb[data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===p));if(p==='adm')loadUsers();if(p==='hist')renderHist();if(p==='stat')renderStats()}
 
 function renderArt(){const q=$('as').value,l=articles.filter(a=>match((a.reference||'')+' '+a.designation+' '+(bcOf.get(a.id)||[]).join(' '),q));$('ac').textContent=`(${articles.length})`;$('aimp').textContent=impTxt('articles');
   $('art').innerHTML=table(['Réf.','Désignation','!Stock init.','Prix TTC','#'],l.slice(0,100).map(a=>`<tr><td class="mono">${esc(a.reference)}</td><td><b>${esc(a.designation)}</b>${a.variantes?` <span class="bd">${a.variantes.split(',').length} variantes</span>`:''}${(bcOf.get(a.id)||[]).length?`<br><small style="color:#16a34a">🏷️ Code-barres (${bcOf.get(a.id).length})</small>`:''}</td><td class="adm">${+a.stock_initial||0}</td><td class="pr">${fmt(a.prix)}</td><td class="adm nw"><button class="btn s sm" data-act="bcmod" data-id="${a.id}">🏷️</button> ${btns('articles',a.id)}</td></tr>`))+(l.length>100?`<p class="mut">100 premiers résultats sur ${l.length} — affinez la recherche.</p>`:'')}
-function renderCli(){const q=$('cs').value,l=clients.filter(c=>match((c.code||'')+' '+c.nom+' '+(c.matricule_fiscal||''),q));$('cc').textContent=`(${clients.length})`;$('cimp').textContent=impTxt('clients');
+function renderCli(){const q=$('cs').value,l=clients.filter(c=>match(cKey(c),q));$('cc').textContent=`(${clients.length})`;$('cimp').textContent=impTxt('clients');
   $('cl').innerHTML=table(['Code','Nom','Matricule fiscal','Régime','Tél.','Adresse','#'],l.slice(0,100).map(c=>`<tr><td class="mono">${esc(c.code)}</td><td><b>${esc(c.nom)}</b></td><td>${esc(c.matricule_fiscal)}</td><td>${esc(c.regime)}</td><td>${esc(c.telephone)}</td><td>${esc(c.adresse)}</td><td class="adm nw">${btns('clients',c.id)}</td></tr>`))+(l.length>100?`<p class="mut">100 premiers résultats sur ${l.length}.</p>`:'')}
 function renderHist(){const q=$('hs').value,l=allCmd().filter(c=>match(c.numero+' '+(c.client?.nom||'')+' '+c.commercial,q));
   $('hist').innerHTML=table(['N°','Client','Commercial','Date','Total',''],l.slice(0,150).map(c=>`<tr><td>${isNew(c)?'<span class="rdot"></span>':''}<b>${esc(c.numero)}</b></td><td>${esc(c.client?.nom)}</td><td>${esc(c.commercial)}</td><td>${dt(c.created_at)}</td><td class="pr">${fmt(c.total)}</td><td class="nw"><button class="btn s sm" data-act="pdf" data-id="${c.id}">📄</button> <button class="btn s sm" data-act="xls" data-id="${c.id}">📊</button> <button class="btn r sm adm" data-act="del" data-t="commandes" data-id="${c.id}">🗑️</button></td></tr>`))}
 
 // ── Nouvelle commande ──
 function dd(k){const c=k==='c',q=$(c?'cq':'aq').value,box=$(c?'ddc':'dda');
-  const l=(c?clients:articles).filter(x=>match(c?(x.code||'')+' '+x.nom:(x.reference||'')+' '+x.designation+' '+(bcOf.get(x.id)||[]).join(' '),q)).slice(0,40);
-  box.innerHTML=l.map(x=>c?`<div class="di" data-act="pickC" data-id="${x.id}"><b>${esc(x.nom)}</b><small>${esc(x.code)}</small></div>`:`<div class="di" data-act="pickA" data-id="${x.id}"><span><b>${esc(x.designation)}</b><br><small>${esc(x.reference)}</small></span><span class="pr">${fmt(x.prix)}</span></div>`).join('')||'<div class="di">Aucun résultat</div>';box.hidden=false}
-function cinfo(){$('cinfo').innerHTML=selClient?`<div class="pi"><div class="pn"><b>${esc(selClient.nom)}</b><small>${esc(selClient.code)} ${esc(selClient.telephone)} ${esc(selClient.adresse)}</small></div><button class="btn s sm" data-act="clr">Changer</button></div>`:'';cart()}
-function cart(){$('cart').innerHTML=panier.map((p,i)=>`<div class="pi"><div class="pn"><b>${esc(p.designation)}</b><small>${esc(p.reference)}${p.detail?' — '+esc(p.detail):''}</small></div>${p.detail?`<b>×${p.qte}</b>`:`<button class="q" data-act="dec" data-i="${i}">−</button><input type="number" min="1" value="${p.qte}" data-q="${i}"><button class="q" data-act="inc" data-i="${i}">+</button>`}<span class="pr">${fmt(p.prix*p.qte)}</span><button class="btn r sm" data-act="rm" data-i="${i}">✕</button></div>`).join('');
-  const T=fmt(panier.reduce((s,p)=>s+p.prix*p.qte,0));$('total').textContent=T;$('total2').textContent=T;$('vbtn').disabled=!selClient||!panier.length}
+  const l=(c?clients:articles).filter(x=>match(c?cKey(x):(x.reference||'')+' '+x.designation+' '+(bcOf.get(x.id)||[]).join(' '),q)).slice(0,40);
+  box.innerHTML=l.map(x=>c?`<div class="di" data-act="pickC" data-id="${x.id}"><span><b>${esc(x.nom)}</b><br><small>${[x.matricule_fiscal&&'MF : '+x.matricule_fiscal,x.telephone&&'Tél : '+x.telephone].filter(Boolean).map(esc).join(' · ')}</small></span><small>${esc(x.code)}</small></div>`:`<div class="di" data-act="pickA" data-id="${x.id}"><span><b>${esc(x.designation)}</b><br><small>${esc(x.reference)}</small></span><span class="pr">${fmt(x.prix)}</span></div>`).join('')||'<div class="di">Aucun résultat</div>';box.hidden=false}
+function cinfo(){$('cinfo').innerHTML=selClient?`<div class="pi"><div class="pn"><b>${esc(selClient.nom)}</b>${selClient.matricule_fiscal?`<small>MF : ${esc(selClient.matricule_fiscal)}</small>`:''}${selClient.telephone?`<small>Tél : ${esc(selClient.telephone)}</small>`:''}<small>${esc(selClient.code)} ${esc(selClient.adresse)}</small></div><button class="btn s sm" data-act="clr">Changer</button></div>`:'';cart()}
+function cart(){$('cart').innerHTML=panier.map((p,i)=>`<div class="pi"><div class="pn"><b>${esc(p.designation)}</b><small>${esc(p.reference)}${p.detail?' — '+esc(p.detail):''}</small>${p.note?`<small style="color:#b45309">📝 ${esc(p.note)}</small>`:''}<button class="btn s sm" style="margin-top:4px" data-act="pnote" data-i="${i}">${p.note?'✏️ Note':'📝 Note'}</button></div>${p.detail?`<b>×${p.qte}</b>`:`<button class="q" data-act="dec" data-i="${i}">−</button><input type="number" min="1" value="${p.qte}" data-q="${i}"><button class="q" data-act="inc" data-i="${i}">+</button>`}<span class="pr">${fmt(p.prix*p.qte)}</span><button class="btn r sm" data-act="rm" data-i="${i}">✕</button></div>`).join('');
+  const T=fmt(panier.reduce((s,p)=>s+p.prix*p.qte,0));$('total').textContent=T;$('total2').textContent=T;$('vbtn').disabled=!selClient||!panier.length;$('dbtn').disabled=!selClient&&!panier.length}
 function addLine(a,detail,qte){const j=panier.findIndex(p=>p.id===a.id);if(j>=0){if(detail)panier.splice(j,1);else{panier[j].qte+=qte;return cart()}}
   panier.unshift({id:a.id,reference:a.reference||'',designation:a.designation,prix:Number(a.prix),qte,detail});cart()}
 function pickA(d){const a=articles.find(x=>x.id===d.id);$('aq').value='';$('dda').hidden=true;
@@ -169,11 +174,12 @@ addEventListener('offline',()=>{$('off').textContent='📴 hors ligne : les sais
 setInterval(()=>{if(me&&navigator.onLine&&getQ().length+getQ2().length)sync()},20000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&me&&navigator.onLine&&Date.now()-lastLoad>120000)sync()});
 async function valider(){
-  const o={id:crypto.randomUUID(),client_id:selClient.id,client:{code:selClient.code,nom:selClient.nom,telephone:selClient.telephone,adresse:selClient.adresse},commercial:me.nom,created_at:new Date().toISOString(),
+  const o={id:crypto.randomUUID(),client_id:selClient.id,client:{code:selClient.code,nom:selClient.nom,telephone:selClient.telephone,adresse:selClient.adresse,matricule_fiscal:selClient.matricule_fiscal||'',regime:selClient.regime||''},commercial:me.nom,created_at:new Date().toISOString(),
     lignes:panier.map(p=>({...p,total:r3(p.prix*p.qte)})),total:r3(panier.reduce((s,p)=>s+p.prix*p.qte,0)),notes:$('notes').value.trim()};
   $('vbtn').disabled=true;const {error}=await sb.from('commandes').insert(o);
   if(error&&error.code){toast(error.message,1);return cart()}
   if(error){setQ([...getQ(),o]);toast('📴 Pas de réseau : commande gardée sur ce téléphone, envoi automatique au retour du réseau')}else toast('Commande enregistrée');
+  if(curDraft){setD(getD().filter(x=>x.id!==curDraft));curDraft=null}
   panier=[];selClient=null;$('notes').value='';cinfo();go('hist');loadAll()}
 
 // ── Administration : articles et clients ──
@@ -207,29 +213,32 @@ async function importFile(t,file){const C=CFG[t],wb=XLSX.read(await file.arrayBu
 const impTxt=k=>{const v=metaRows.find(r=>r.key==='import_'+k)?.value;return v?`Dernière importation : ${dt(v.at)} — ${v.ajoutes} ajouté(s), ${v.maj} mis à jour${v.fichier?' ('+v.fichier+')':''}`:'Dernière importation : pas encore enregistrée'}
 
 // ── Exports ──
+function fname(c,ext){const n=String(c.client?.nom||'Client').replace(/[\\/:*?"<>|\n\r]+/g,' ').trim().replace(/\s+/g,'_').slice(0,50)||'Client',d=new Date(c.created_at),z=x=>String(x).padStart(2,'0');
+  return `${n}_${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}_${z(d.getHours())}h${z(d.getMinutes())}.${ext}`}
 function xls(c){const h=[['BON DE COMMANDE : '+c.numero],['Client : '+(c.client?.nom||'')],['Date : '+dt(c.created_at)],['Commercial : '+c.commercial],['']],rows=l=>l.flatMap(x=>[[x.reference||''],[x.qte]]),wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([...h,...rows(c.lignes)]),'BC');
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([...h,...rows([...c.lignes].reverse())]),'BC inversé');XLSX.writeFile(wb,'BC-'+c.numero+'.xlsx')}
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([...h,...rows([...c.lignes].reverse())]),'BC inversé');XLSX.writeFile(wb,fname(c,'xlsx'))}
 function pdf(c){const {jsPDF}=window.jspdf,d=new jsPDF(),W=210,M=12,X=[M,50,122,152,176];let y;d.setLineHeightFactor(1.3);
   const head=()=>{d.setFillColor(180,220,190).rect(M,y,W-2*M,7,'F');d.setFont('helvetica','bold').setFontSize(8).setTextColor(30,60,40);['Référence','Désignation','Prix TTC','Qté','Total TTC'].forEach((h,i)=>d.text(h,X[i]+1,y+5));y+=7};
   d.setFillColor(230,245,235).rect(0,0,W,22,'F');d.setTextColor(30,80,50).setFont('helvetica','bold').setFontSize(13).text('BON DE COMMANDE',M,9);
   d.setFont('helvetica','normal').setFontSize(8).text((c.numero==='PROVISOIRE'?'N° PROVISOIRE (non synchronisé)':'N° '+c.numero)+'   Date : '+dt(c.created_at),M,15).text('Commercial : '+c.commercial,M,19.5);
-  const k=c.client||{},cl=d.splitTextToSize('CLIENT : '+[k.code&&`[${k.code}]`,k.nom,k.telephone&&'Tél : '+k.telephone,k.adresse].filter(Boolean).join('   '),W-2*M-4);
+  const k=c.client||{},cl=d.splitTextToSize('CLIENT : '+[k.code&&`[${k.code}]`,k.nom,k.matricule_fiscal&&'MF : '+k.matricule_fiscal,k.telephone&&'Tél : '+k.telephone,k.adresse].filter(Boolean).join('   '),W-2*M-4);
   d.setTextColor(40).text(cl,M+2,31);y=31+cl.length*4+3;head();
-  c.lignes.forEach((l,i)=>{const a=d.splitTextToSize(l.designation,66),b=l.detail?d.splitTextToSize(l.detail,66):[],h=Math.max(6,(a.length+b.length)*3.7+2.5);
+  c.lignes.forEach((l,i)=>{const a=d.splitTextToSize(l.designation,66),b=l.detail?d.splitTextToSize(l.detail,66):[],nt=l.note?d.splitTextToSize('Note : '+l.note,66):[],h=Math.max(6,(a.length+b.length+nt.length)*3.7+2.5);
     if(y+h>268){d.addPage();y=12;head()}
     if(i%2===0)d.setFillColor(245,252,247).rect(M,y,W-2*M,h,'F');
     d.setFontSize(8).setFont('helvetica','normal').setTextColor(30);
     d.text(String(l.reference||'').slice(0,16),X[0]+1,y+4.2).text(a,X[1]+1,y+4.2).text(Number(l.prix).toFixed(3),X[2]+1,y+4.2).text(String(l.qte),X[3]+1,y+4.2).text(Number(l.total).toFixed(3),X[4]+1,y+4.2);
-    if(b.length)d.setFont('helvetica','italic').setFontSize(7).setTextColor(90).text(b,X[1]+1,y+4.2+a.length*3.7);y+=h});
+    if(b.length)d.setFont('helvetica','italic').setFontSize(7).setTextColor(90).text(b,X[1]+1,y+4.2+a.length*3.7);
+    if(nt.length)d.setFont('helvetica','italic').setFontSize(7).setTextColor(150,75,0).text(nt,X[1]+1,y+4.2+(a.length+b.length)*3.7);y+=h});
   if(y>258){d.addPage();y=12}y+=3;
   d.setFillColor(180,220,190).rect(125,y,W-125-M,9,'F');d.setTextColor(30,80,50).setFont('helvetica','bold').setFontSize(10).text('TOTAL TTC : '+Number(c.total).toFixed(3)+' DT',128,y+6.3);
   if(c.notes){y+=15;d.setFont('helvetica','normal').setFontSize(8).setTextColor(60).text(d.splitTextToSize('Notes : '+c.notes,W-2*M),M,y)}
   const n=d.getNumberOfPages();for(let i=1;i<=n;i++){d.setPage(i);d.setFillColor(230,245,235).rect(0,284,W,13,'F');d.setTextColor(30,80,50).setFont('helvetica','normal').setFontSize(7.5).text(FOOTER,W/2,290,{align:'center'}).text(`Page ${i}/${n}`,W/2,295,{align:'center'})}
-  d.save('BC-'+c.numero+'.pdf')}
+  d.save(fname(c,'pdf'))}
 
 // ── Événements (aucun onclick inline : plus de bug avec les apostrophes) ──
-const A={bcmod:d=>bcmod(d.id),bcx:d=>{if(d.id&&d.id!=='null')document.querySelector(`[data-bcid="${d.id}"]`)?.closest('.vr').toggleAttribute('data-del')},bcscan2:()=>{linkArt=bcArt;openScan('link')},isel_x:()=>{selArt=null;renderSel()},ireset,ubackup,urestore:()=>$('fb').click(),cscan:()=>openScan('cmd'),ascan:()=>openScan('afind'),bcscan:d=>{linkArt=artMap.get(d.id);openScan('link')},xbc:exportBc,uadd,uname,upass,udel,ureset,scan:()=>openScan('find'),scanlink:()=>{linkArt=selArt;openScan('link')},scanx:closeScan,torch,cam:camNext,calc,isave,pickI,pcx:()=>{pendingCode=null;banner()},bcdel,xinv:()=>exportInv(false),xall:()=>exportInv(true),logout:async()=>{if((getQ().length||getQ2().length)&&!confirm('Des commandes ne sont pas encore envoyées. Quitter quand même ?'))return;localStorage.removeItem('bcme');await idb('readwrite','cat',null).catch(()=>{});try{await sb.auth.signOut()}catch{}location.reload()},refresh:async()=>{await flushQ();await flushQ2();await loadAll();toast('Actualisé')},close:closeModal,
+const A={pnote,dsave,dopen:d=>dopen(d.id),ddel:d=>{if(confirm('Supprimer ce brouillon ?')){setD(getD().filter(x=>x.id!==d.id));if(curDraft===d.id)curDraft=null}},stuser,xnc,bcmod:d=>bcmod(d.id),bcx:d=>{if(d.id&&d.id!=='null')document.querySelector(`[data-bcid="${d.id}"]`)?.closest('.vr').toggleAttribute('data-del')},bcscan2:()=>{linkArt=bcArt;openScan('link')},isel_x:()=>{selArt=null;renderSel()},ireset,ubackup,urestore:()=>$('fb').click(),cscan:()=>openScan('cmd'),ascan:()=>openScan('afind'),bcscan:d=>{linkArt=artMap.get(d.id);openScan('link')},xbc:exportBc,uadd,uname,upass,udel,ureset,scan:()=>openScan('find'),scanlink:()=>{linkArt=selArt;openScan('link')},scanx:closeScan,torch,cam:camNext,calc,isave,pickI,pcx:()=>{pendingCode=null;banner()},bcdel,xinv:()=>exportInv(false),xall:()=>exportInv(true),logout:async()=>{if((getQ().length||getQ2().length)&&!confirm('Des commandes ne sont pas encore envoyées. Quitter quand même ?'))return;localStorage.removeItem('bcme');await idb('readwrite','cat',null).catch(()=>{});try{await sb.auth.signOut()}catch{}location.reload()},refresh:async()=>{await flushQ();await flushQ2();await loadAll();toast('Actualisé')},close:closeModal,
   pickC:d=>{selClient=clients.find(c=>c.id===d.id);$('cq').value='';$('ddc').hidden=true;cinfo()},clr:()=>{selClient=null;cinfo()},pickA,
   inc:d=>{panier[d.i].qte++;cart()},dec:d=>{if(--panier[d.i].qte<1)panier.splice(d.i,1);cart()},rm:d=>{panier.splice(d.i,1);cart()},valider,
   edit:d=>formModal(d.t,(d.t==='articles'?articles:clients).find(x=>x.id===d.id)),add:d=>formModal(d.t),del:d=>del(d.t,d.id),delAll:d=>delAll(d.t),
@@ -238,7 +247,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('.dd-wrap'))document.
   const kk=e.target.closest('[data-k]');if(kk)return ckey(kk.dataset.k);const t=e.target.closest('[data-go],[data-act]');if(!t)return;if(t.dataset.go)return go(t.dataset.go);A[t.dataset.act]?.(t.dataset)});
 document.addEventListener('change',async e=>{const t=e.target;
   if(t.dataset.role){try{await adm({action:'role',id:t.dataset.role,role:t.value});toast('Rôle modifié')}catch(x){toast(x.message,1)}loadUsers()}
-  if(t.dataset.perm){const u=users.find(x=>x.id===t.dataset.perm),cur=new Set(u.onglets||TABS.map(x=>x[0]));t.checked?cur.add(t.dataset.tab):cur.delete(t.dataset.tab);
+  if(t.dataset.perm){const u=users.find(x=>x.id===t.dataset.perm),cur=new Set(u.onglets||DEF);t.checked?cur.add(t.dataset.tab):cur.delete(t.dataset.tab);
     if(!cur.size){t.checked=true;return toast('Au moins un onglet doit rester visible',1)}
     const arr=TABS.map(x=>x[0]).filter(k=>cur.has(k));try{await rd(sb.from('profiles').update({onglets:arr}).eq('id',u.id));u.onglets=arr;toast('Accès mis à jour')}catch(x){toast(x.message,1);t.checked=!t.checked}}
   if(t.dataset.q!==undefined){panier[t.dataset.q].qte=Math.max(1,parseInt(t.value)||1);cart()}
@@ -334,13 +343,63 @@ function handleCode(c){const id=bcIdx.get(c);
   if(scanMode==='afind'){if(id){$('as').value=c;renderArt()}else toast('Code-barres inconnu. Un admin peut l’associer avec 📷 sur la ligne de l’article',1);return}
   if(id)return pickI({id});pendingCode=c;banner();toast('Code inconnu : cherchez l’article à associer');$('iq').focus()}
 document.addEventListener('input',e=>{if(e.target.id==='iqte')ecart()});$('iq').oninput=$('iq').onfocus=ddi;
+// ══ Note par article, brouillons ══
+function pnote(d){const p=panier[d.i];if(!p)return;
+  modal('Note : '+p.designation.slice(0,40),`<div class="fg"><label>Note sur cet article (imprimée sous l’article dans le PDF)</label><textarea id="pn_t" rows="4">${esc(p.note||'')}</textarea></div>`,()=>{p.note=$('pn_t').value.trim();closeModal();cart()},'Enregistrer');setTimeout(()=>$('pn_t').focus(),60)}
+const dK=()=>'bcdrafts_'+me.id,getD=()=>JSON.parse(localStorage.getItem(dK())||'[]'),setD=l=>{localStorage.setItem(dK(),JSON.stringify(l));renderDrafts()};
+function dsave(){if(!selClient&&!panier.length)return;const l=getD(),d={id:curDraft||crypto.randomUUID(),client:selClient,lignes:panier,notes:$('notes').value,t:Date.now()},i=l.findIndex(x=>x.id===d.id);
+  if(i>=0)l[i]=d;else l.unshift(d);setD(l);curDraft=null;panier=[];selClient=null;$('notes').value='';cinfo();toast('📝 Brouillon enregistré : retrouvez-le en haut de cette page')}
+function dopen(id){const d=getD().find(x=>x.id===id);if(!d)return;if((panier.length||selClient)&&!confirm('Remplacer la commande en cours par ce brouillon ?'))return;
+  selClient=d.client;panier=d.lignes;$('notes').value=d.notes||'';curDraft=id;cinfo();window.scrollTo(0,0)}
+function renderDrafts(){const l=me?getD():[];$('dlist').innerHTML=l.length?`<div class="card" style="background:#fffbeb"><h3>📝 Brouillons (${l.length})</h3>${l.map(d=>`<div class="pi"><div class="pn"><b>${esc(d.client?.nom||'Sans client')}${curDraft===d.id?' (en cours)':''}</b><small>${d.lignes.length} article(s) · ${fmt(d.lignes.reduce((s,p)=>s+p.prix*p.qte,0))} · ${dt(d.t)}</small></div><button class="btn g sm" data-act="dopen" data-id="${d.id}">Ouvrir</button><button class="btn r sm" data-act="ddel" data-id="${d.id}">🗑️</button></div>`).join('')}</div>`:''}
+// ══ Statistiques (admin) ══
+const pct=x=>(Math.round(x*10)/10).toFixed(1).replace('.',',')+' %';
+const kpi=(v,l)=>`<div class="k"><b>${v}</b><small>${l}</small></div>`;
+const barH=x=>`<div class="bar0"><i style="width:${Math.min(100,x)}%"></i></div>`;
+async function renderStats(){
+  let P=[];try{if(navigator.onLine)P=await rd(sb.from('profiles').select('id,nom,role'))}catch{}
+  const nmM=new Map(P.map(p=>[p.id,p.nom])),nm=id=>nmM.get(id)||(id===me.id?me.nom:'Utilisateur '+String(id).slice(0,4)),U=new Map();
+  invRows.filter(r=>r.user_id!==me.id&&Number(r.qte)>0).forEach(r=>{if(!U.has(r.user_id))U.set(r.user_id,new Map());U.get(r.user_id).set(r.article_id,Number(r.qte))});
+  if(myInv.size)U.set(me.id,new Map(myInv));P.forEach(p=>{if(!U.has(p.id))U.set(p.id,new Map())});
+  const T=new Map(),C=new Map();U.forEach(m=>m.forEach((q,a)=>{T.set(a,(T.get(a)||0)+q);C.set(a,(C.get(a)||0)+1)}));
+  const N=articles.length||1,done=[...T.keys()].filter(id=>artMap.has(id)).length,val=[...T].reduce((s,[id,q])=>s+q*(+artMap.get(id)?.prix||0),0);
+  const nc=articles.filter(a=>!T.has(a.id)),ncS=nc.filter(a=>+a.stock_initial>0).length,multi=[...C].filter(x=>x[1]>1).length;
+  const big=[...T].map(([id,q])=>{const a=artMap.get(id);return a&&[a,q,r3(q-(+a.stock_initial||0))]}).filter(x=>x&&x[2]).sort((a,b)=>Math.abs(b[2])-Math.abs(a[2])).slice(0,10);
+  ST={U,T,nm,nc};
+  const rows=[...U].map(([id,m])=>[id,m.size,[...m.values()].reduce((s,q)=>s+q,0)]).sort((a,b)=>b[1]-a[1]);
+  $('st_a').innerHTML=`<div class="card"><h3>📊 Inventaire : vue d’ensemble</h3><div class="kg">${kpi(pct(done/N*100),'du catalogue compté')}${kpi(done+' / '+articles.length,'articles comptés')}${kpi(nc.length,'articles non comptés')}${kpi(ncS,'non comptés avec un stock initial')}${kpi(multi,'comptés par plusieurs utilisateurs')}${kpi(fmt(val),'valeur comptée (prix TTC)')}</div>${barH(done/N*100)}</div>
+  <div class="card"><h3>👥 Avancement par utilisateur</h3>${table(['Utilisateur','Articles comptés','% du catalogue','','Quantités'],rows.map(([id,n,q])=>`<tr data-act="stuser" data-id="${id}" style="cursor:pointer"><td><b>${esc(nm(id))}</b></td><td>${n}</td><td class="pr">${pct(n/N*100)}</td><td style="min-width:90px">${barH(n/N*100)}</td><td>${r3(q)}</td></tr>`))}<p class="mut">Touchez une ligne pour voir les articles comptés par cet utilisateur et leurs quantités.</p></div>`;
+  const oc=commandes,cd=c=>new Date(c.created_at).getTime(),now=new Date(),td=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime(),mo=new Date(now.getFullYear(),now.getMonth(),1).getTime();
+  const ca=oc.reduce((s,c)=>s+Number(c.total||0),0),byC=new Map(),byK=new Map(),byA=new Map();
+  oc.forEach(c=>{const a=byC.get(c.commercial||'?')||{n:0,ca:0};a.n++;a.ca+=Number(c.total||0);byC.set(c.commercial||'?',a);
+    const kk=c.client?.nom||'?',b=byK.get(kk)||{n:0,ca:0};b.n++;b.ca+=Number(c.total||0);byK.set(kk,b);
+    (c.lignes||[]).forEach(l=>{const key=(l.reference||'')+'|'+l.designation,x=byA.get(key)||{ref:l.reference,des:l.designation,q:0,m:0};x.q+=Number(l.qte||0);x.m+=Number(l.total||0);byA.set(key,x)})});
+  const top=(M,f,n)=>[...M].sort((a,b)=>f(b[1])-f(a[1])).slice(0,n),wb=articles.filter(a=>(bcOf.get(a.id)||[]).length).length;
+  $('st_b').innerHTML=`<div class="card"><h3>⚠️ Points d’attention (inventaire)</h3>${big.length?table(['Réf.','Désignation','Compté','Stock init.','Écart'],big.map(([a,q,e])=>`<tr><td class="mono">${esc(a.reference)}</td><td>${esc(a.designation)}</td><td>${q}</td><td>${+a.stock_initial||0}</td><td class="pr">${e>0?'+':''}${e}</td></tr>`)):'<p class="mut">Aucun écart par rapport au stock initial.</p>'}<div class="bar" style="margin-top:10px"><button class="btn s sm" data-act="xnc">📥 Exporter les articles non comptés (${nc.length})</button></div></div>
+  <div class="card"><h3>🧾 Commandes${oc.length>=500?' (500 dernières)':''}</h3><div class="kg">${kpi(oc.length,'commandes')}${kpi(oc.filter(c=>cd(c)>=td).length,'aujourd’hui')}${kpi(oc.filter(c=>cd(c)>=mo).length,'ce mois-ci')}${kpi(fmt(ca),'chiffre d’affaires')}${kpi(fmt(oc.length?ca/oc.length:0),'panier moyen')}</div>
+  <p class="mut"><b>Par commercial</b></p>${table(['Commercial','Commandes','CA'],top(byC,x=>x.ca,20).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.n}</td><td class="pr">${fmt(v.ca)}</td></tr>`))}
+  <p class="mut"><b>10 articles les plus commandés</b></p>${table(['Réf.','Désignation','Quantité','Montant'],top(byA,x=>x.q,10).map(([,v])=>`<tr><td class="mono">${esc(v.ref)}</td><td>${esc(v.des)}</td><td><b>${r3(v.q)}</b></td><td class="pr">${fmt(v.m)}</td></tr>`))}
+  <p class="mut"><b>5 meilleurs clients</b></p>${table(['Client','Commandes','CA'],top(byK,x=>x.ca,5).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.n}</td><td class="pr">${fmt(v.ca)}</td></tr>`))}</div>
+  <div class="card"><h3>📦 Catalogue et clients</h3><div class="kg">${kpi(articles.length,'articles')}${kpi(pct(wb/N*100),'articles avec code-barres')}${kpi(articles.length-wb,'sans code-barres')}${kpi(clients.length,'clients')}${kpi(clients.filter(c=>!c.matricule_fiscal).length,'clients sans matricule fiscal')}${kpi(clients.filter(c=>!c.telephone).length,'clients sans téléphone')}</div></div>`;
+  renderSres()}
+function renderSres(){if(!ST)return;const q=$('sq').value;if(!q.trim()){$('sres').innerHTML='<p class="mut">Tapez pour chercher parmi les articles comptés.</p>';return}
+  const l=[...ST.T.keys()].map(id=>artMap.get(id)).filter(a=>a&&match((a.reference||'')+' '+a.designation+' '+(bcOf.get(a.id)||[]).join(' '),q)).slice(0,30);
+  $('sres').innerHTML=table(['Réf.','Désignation','Par utilisateur','Total','Stock init.','Écart'],l.map(a=>{const per=[...ST.U].filter(([,m])=>m.has(a.id)).map(([u,m])=>`${esc(ST.nm(u))} : <b>${m.get(a.id)}</b>`).join('<br>'),tt=ST.T.get(a.id),e=r3(tt-(+a.stock_initial||0));
+    return `<tr><td class="mono">${esc(a.reference)}</td><td>${esc(a.designation)}</td><td>${per}</td><td><b>${r3(tt)}</b></td><td>${+a.stock_initial||0}</td><td class="pr">${e>0?'+':''}${e}</td></tr>`}))}
+function stuser(d){if(!ST)return;const m=ST.U.get(d.id)||new Map();
+  const draw=()=>{const q=$('su_f').value,l=[...m].map(([id,n])=>[artMap.get(id),n]).filter(x=>x[0]&&match((x[0].reference||'')+' '+x[0].designation,q)).sort((a,b)=>a[0].designation.localeCompare(b[0].designation));
+    $('su_l').innerHTML=`<p class="mut">${l.length} article(s) compté(s)</p>`+table(['Réf.','Désignation','Qté'],l.slice(0,200).map(([a,n])=>`<tr><td class="mono">${esc(a.reference)}</td><td>${esc(a.designation)}</td><td><b>${n}</b></td></tr>`))};
+  modal('Inventaire de '+ST.nm(d.id),`<input id="su_f" placeholder="🔍 Filtrer…" style="margin-bottom:8px"><div id="su_l"></div>`,closeModal,'Fermer');$('su_f').oninput=draw;draw()}
+function xnc(){if(!ST)return;const l=ST.nc;if(!l.length)return toast('Tous les articles sont comptés',1);const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Référence','Désignation','Stock initial'],...l.map(a=>[a.reference,a.designation,+a.stock_initial||0])]),'Non comptés');XLSX.writeFile(wb,'Articles-non-comptes-'+new Date().toISOString().slice(0,10)+'.xlsx')}
+$('sq').oninput=renderSres;
 // ══ Onglets autorisés, notifications de commandes, codes-barres manuels, reset ══
-const TABS=[['cmd','Commande'],['hist','Historique'],['art','Articles'],['inv','Inventaire']];
-function canSee(p){return isAdmin()||(p!=='cli'&&p!=='adm'&&(!me.onglets||me.onglets.includes(p)))}
+const TABS=[['cmd','Commande'],['hist','Historique'],['art','Articles'],['inv','Inventaire'],['cli','Clients (lecture seule)']],DEF=['cmd','hist','art','inv'];
+function canSee(p){return isAdmin()||(p!=='adm'&&p!=='stat'&&(p==='cli'?!!me.onglets?.includes('cli'):(!me.onglets||me.onglets.includes(p))))}
 function applyTabs(){document.body.classList.toggle('admin',isAdmin());document.querySelectorAll('.nb[data-go]').forEach(b=>b.hidden=!canSee(b.dataset.go));
   if(curPage&&!canSee(curPage))go(['cmd','hist','art','inv'].find(canSee)||'cmd')}
 function renderPerm(){const l=users.filter(u=>u.role!=='admin');
-  $('uperm').innerHTML=l.length?table(['Utilisateur',...TABS.map(x=>x[1])],l.map(u=>`<tr><td><b>${esc(u.nom)}</b></td>${TABS.map(([k])=>`<td><input type="checkbox" data-perm="${u.id}" data-tab="${k}" ${!u.onglets||u.onglets.includes(k)?'checked':''}></td>`).join('')}</tr>`)):'<p class="mut">Aucun utilisateur standard.</p>'}
+  $('uperm').innerHTML=l.length?table(['Utilisateur',...TABS.map(x=>x[1])],l.map(u=>`<tr><td><b>${esc(u.nom)}</b></td>${TABS.map(([k])=>`<td><input type="checkbox" data-perm="${u.id}" data-tab="${k}" ${(u.onglets?u.onglets.includes(k):DEF.includes(k))?'checked':''}></td>`).join('')}</tr>`)):'<p class="mut">Aucun utilisateur standard.</p>'}
 function seenK(){return 'bcseen_'+me.id}
 function markSeen(){localStorage.setItem(seenK(),String(Math.max(0,...commandes.map(c=>new Date(c.created_at).getTime()))||Date.now()))}
 function unread(){const s=+localStorage.getItem(seenK());return s?commandes.filter(c=>c.user_id!==me.id&&new Date(c.created_at).getTime()>s):[]}
